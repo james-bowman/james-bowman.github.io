@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:image" content="http://www.jamesbowman.me//post/optimising-go-code-with-assembler.jpg"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Optimising Go code with Assembler"/>
+<meta name="twitter:description" content="Optimising Golang sparse vector dot product kernel with assembler for machine learning applications"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Optimising Go code with Assembler &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/optimising-go-code-with-assembler/" />
+
+    
+    <meta property="og:description" content="Optimising Golang sparse vector dot product kernel with assembler for machine learning applications" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="og:image" content="http://www.jamesbowman.me//post/optimising-go-code-with-assembler.jpg" />
+    
+    <meta property="article:published_time" content="2019-01-07T07:45:00Z" />
+
+    
+    <meta property="article:tag" content="go" />
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="algorithms" />
+    
+    <meta property="article:tag" content="machine learning" />
+    
+    
+
+    
+  
+    <title>Optimising Go code with Assembler &middot; James Bowman</title>
+
+    
+    <meta name="description" content="Optimising Golang sparse vector dot product kernel with assembler for machine learning applications" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/optimising-go-code-with-assembler/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Optimising Go code with Assembler",
+    "name": "Optimising Go code with Assembler",
+    "wordCount":  3561 ,
+    "timeRequired": "PT17M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/optimising-go-code-with-assembler/",
+    "datePublished": "2019-01-07T07:45Z",
+    "dateModified": "2019-01-07T07:45Z",
+    
+    "image": {
+        "@type": "ImageObject",
+        "url": "http://www.jamesbowman.me//post/optimising-go-code-with-assembler.jpg",
+        "width": 3000,
+        "height": 1445
+    },
+    
+    
+    "keywords": "go, development, algorithms, machine learning",
+    "description": "Optimising Golang sparse vector dot product kernel with assembler for machine learning applications",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/optimising-go-code-with-assembler/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+  
+  <header class="main-header post-head" style="background-image: url(http://www.jamesbowman.me//post/optimising-go-code-with-assembler.jpg)">
+  
+  <nav class="main-nav overlay clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Optimising Go code with Assembler</h1>
+        <small>Optimising Golang sparse vector dot product kernel with assembler for machine learning applications</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2019-01-07T07:45:00Z">
+            Jan 7, 2019
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/go/">#go</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/algorithms/">#algorithms</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/machine-learning/">#machine learning</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>In this blog post I will explore the steps to optimise a sparse vector dot product operation.  We will start with a basic implementation in Go, convert it to assembler and then iteratively optimise it, measuring the effect of each change to check our progress.  All the code from the post is available on <a href="https://github.com/james-bowman/algos">Github</a> and also forms part of the <a href="https://github.com/james-bowman/sparse">Golang Sparse matrix package</a>.</p>
+
+<p>A <a href="https://en.wikipedia.org/wiki/Dot_product">vector dot product</a> is a very common kernel, or basic building block, for many computations used within scientific computing and machine learning e.g. matrix multiplication, cosine similarity, etc.  The dot product simply multiplies together the respective elements of two vectors and then adds all the results together to give a scalar output.</p>
+
+<p>Here is an example of how this operation could look in code.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> Dot(x []<span style="color: #2b91af">float64</span>, y []<span style="color: #2b91af">float64</span>) (dot <span style="color: #2b91af">float64</span>) {
+  <span style="color: #0000ff">for</span> i, v := <span style="color: #0000ff">range</span> x {
+    dot += v * y[i]
+  }
+  <span style="color: #0000ff">return</span>
+}
+</pre></div>
+
+<h2 id="1-sparse-vectors">1. Sparse Vectors</h2>
+
+<p><a href="https://www.quora.com/In-machine-learning-what-is-the-difference-between-sparse-vector-and-dense-vector">Sparse vector formats</a> store only the non-zero values of the vector, supporting optimisations for both memory use and performance.  This can yield significant gains in applications where the data is very sparse (mostly zeros) such as NLP (Natural Language Processing) and some machine learning applications.  For example, in NLP it is common to have vectors where 99% of the elements as zero.  A sparse vector therefore has 2 components: a <code>float64</code> slice containing the non-zero values and an <code>int</code> slice containing the indices of those non-zero values.  If we were to rewrite the example Dot function above so that one of the vectors, <code>x</code>, is sparse (with <code>indx</code> representing the indexes of the non-zero values) then it would look like this:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> Dot1(x []<span style="color: #2b91af">float64</span>, indx []<span style="color: #2b91af">int</span>, y []<span style="color: #2b91af">float64</span>) (dot <span style="color: #2b91af">float64</span>) {
+  <span style="color: #0000ff">for</span> i, index := <span style="color: #0000ff">range</span> indx {
+    dot += x[i] * y[index]
+  }
+  <span style="color: #0000ff">return</span>
+}
+</pre></div>
+
+<p>It should be clear from the code above that only the non-zero values of the sparse matrix <code>x</code> are being processed, multiplying them by their respective elements from the dense vector <code>y</code>.  Multiplying the zero values of <code>x</code> by their respective elements of <code>y</code> would result in zero and so is redundant as it would not affect the overall dot product.</p>
+
+<p>If we wished to calculate a dot product where both vectors are sparse, we can still use the above function but first <a href="https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)">scatter</a> the values of one of the vectors into a dense vector so it can be supplied to the function as <code>y</code>.</p>
+
+<p>To measure the performance of our function and establish a baseline, we will test it using Go&rsquo;s built in benchmarking functionality.  We will call the function with a number of different vector lengths to get a good feel of how the function performs over different inputs.  We shall test with vectors of length 100, 1,000, 10,000 and 100,000. To keep the number of tests manageable, we will fix the density of the sparse vector to 10% (only 10% of the elements are non-zero).</p>
+
+<p>Here are the results of the benchmark for our baseline Go implementation:</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+</code></pre>
+
+<h2 id="2-assembly-code">2. Assembly code</h2>
+
+<p>A full overview of <a href="https://golang.org/doc/asm">programming assembler with Go</a> is beyond the scope of this blog post.  To implement our Dot funtion in assembler, we first need to define a prototype (the function definition, with no body) of the function within a <code>.go</code> file within the package as follows:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #008000">// Dot2 is a basic, literal assembler implementation of sparse dot product.</span>
+<span style="color: #0000ff">func</span> Dot2(x []<span style="color: #2b91af">float64</span>, indx []<span style="color: #2b91af">int</span>, y []<span style="color: #2b91af">float64</span>, incy <span style="color: #2b91af">int</span>) (dot <span style="color: #2b91af">float64</span>)
+</pre></div>
+
+<p>Next, we write the assembly code implementation of the function in a separate file with the suffix <code>_amd64.s</code>.  It should be clear, this targets AMD64 compatible CPUs and if you wish to target an alternative CPU you would need to replace the <code>amd64</code> substring in the suffix with the corresponding label for your CPU.  Here is an initial, basic assmbler implementation of the sparse dot product function:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">#include</span> <span style="color: #008000">&quot;textflag.h&quot;</span><span style="color: #0000ff"></span>
+
+<span style="color: #008000">// func Dot2(x []float64, indx []int, y []float64) (dot float64)</span>
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot2(SB), NOSPLIT, <span style="border: 1px solid #FF0000">$</span>0
+  <span style="color: #008000">// move supplied parameters into registers</span>
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX       <span style="color: #008000">// len(indx)</span>
+
+  XORL    R9, R9                <span style="color: #008000">// i = 0</span>
+  XORPS   X0, X0                <span style="color: #008000">// dot = 0</span>
+
+loop:
+  CMPQ    R9, AX                <span style="color: #008000">// for i &lt; len(indx)</span>
+  JGE     end
+
+  MOVQ    (SI)(R9*8), R10       <span style="color: #008000">// indx[i]</span>
+  MOVSD   (R8)(R9*8), X1        <span style="color: #008000">// x[i]</span>
+  INCQ    R9                    <span style="color: #008000">// i++</span>
+
+  MULSD   (DX)(R10*8), X1       <span style="color: #008000">// X1 = x[i] * y[indx[i]]</span>
+  ADDSD   X1, X0                <span style="color: #008000">// dot += X1</span>
+
+  JMP     loop
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>The first thing to note is the <code>#include</code> directive which should be familiar to anyone who has ever done any C/C++ programming.  This include allows us to use human readable names for the function and branch labels within the code.  Functions are always declared as <code>TEXT ·Dot2(SB), NOSPLIT, $0</code> where <code>Dot2</code> represents the function name and the value <code>$0</code> indicates the size of the data frame.  As we are not allocating any new memory - beyond what is passed into the function - we are using a size of 0 (the <code>$</code> symbol denotes the <code>0</code> that follows it is a literal constant).</p>
+
+<p>The first block of instructions moves the supplied function parameters into hardware registers so we can make use of them.  Of note is the fact that the memory offsets into the data frame are required to address the parameters correctly.  Slices are actually 24 bytes long and comprise 3 x 8 byte components:</p>
+
+<ol>
+<li>a pointer to the first element of the slice</li>
+<li>the length of the slice</li>
+<li>the capacity of the slice</li>
+</ol>
+
+<p>You will notice at the end of the function, we move the result of the operation (the accumulator) from the register <code>X0</code> back into the data frame so it can be accessed by the caller of the function.</p>
+
+<p>The second block initialises the accumulator <code>X0</code> and our loop index <code>R9</code> by setting them to <code>0</code>.  It does this by XORing them by themselves as this is more efficient that explicitly setting them to <code>0</code>.</p>
+
+<p>The rest of the function should be fairly clear, there is a check to see if the loop index has reached the end of the vector (<code>CMPQ    R9, AX</code>) and if it has, the next instruction (<code>JGE     end</code>) jumps to the label <code>end</code>.</p>
+
+<p>The next elements of <code>indx</code> and <code>x</code> are loaded into registers <code>R10</code> and <code>X1</code> accordingly and then the loop index <code>i</code> is incremented.  The respective element of <code>y</code> (using the loaded value of <code>indx</code>in <code>R10</code> to address it) is then multiplied by <code>X1</code> and the result added to the accumulator <code>X0</code>.</p>
+
+<p>Lets compare the performance of this assembler version against against the original Go implementation:</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+</code></pre>
+
+<p>The benchmark shows a modest improvement across the board.  This is most likely due to the removal of the rather expensive implicit bounds checking that Go performs when accessing slices.  There is no bounds checking in our assembler version.</p>
+
+<h2 id="3-loop-inversion">3. Loop inversion</h2>
+
+<p>The first optimisation we will apply is called <a href="https://en.wikipedia.org/wiki/Loop_inversion"><em>loop inversion optimisation</em></a>.  In essence, this optimisation exchanges the <code>for</code> loop from our original implementation for a <code>do...while</code> style loop where the condition is evaluated at the end of the loop.  As we are now not evaluating the loop criteria until the end, we will also need to precede the loop with a conditional check to cover the case where the loop should run zero times.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+
+<span style="border: 1px solid #FF0000">//</span> func Dot3(x []float64, indx []int, y []float64) (dot float64)
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot3(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORL    R9, R9
+  XORPS   X0, X0
+
+  CMPQ    R9, AX            // if i &gt;<span style="border: 1px solid #FF0000">=</span> len(indx)
+  JGE     end
+
+loop:
+  MOVQ    (SI)(R9*8), R10
+  MOVSD   (R8)(R9*8), X1  
+  INCQ    R9
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  CMPQ    R9, AX
+  JL      loop              // do...while(i &lt; len(indx))
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>We can see in the code above that the unconditional jump (<code>JMP loop</code>) instruction from our previous version <code>Dot2</code> has been replaced with a conditional jump and the condition at the top of the loop has now been moved out of the loop entirely to precede it.  This has reduced the number of branch/jump instructions followed by 2 and almost halving the number of branch instructions processed (both followed and un-followed).  This is especially significant as branches are very expensive often causing <a href="https://en.wikipedia.org/wiki/Pipeline_stall">execution pipeline stalls</a> and <a href="https://en.wikipedia.org/wiki/Branch_misprediction">branch mispredictions</a>.</p>
+
+<p>Lets review the benchmarks with our previous versions (<code>Dot1</code> and <code>Dot2</code>):</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+</code></pre>
+
+<p>As expected, we can see a modest improvement over the previous versions.  This optimisation also allows us to now make further optimisations.</p>
+
+<h2 id="4-loop-reversal">4. Loop reversal</h2>
+
+<p>The next optimisation is called <em>loop reversal optimisation</em>.  Loop reversal, changes the order in which a loop iterates, typically decrementing the loop counter down towards zero rather than incrementing up from zero.  The primary advantage is that the change can change data dependencies and enable other optimisations.  This approach can also eliminate further loop overhead as many architectures support native <em>jump if zero</em> style instructions removing the need for the explicit <code>CMPQ</code> instruction to compare with <code>0</code> at the end of the loop.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+
+<span style="border: 1px solid #FF0000">//</span> func Dot4(x []float64, indx []int, y []float64) (dot float64)
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot4(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX       // k <span style="border: 1px solid #FF0000">=</span> len(indx)
+
+  XORPS   X0, X0
+
+  SUBQ    <span style="color: #0000ff">$</span>1, AX                // if --k &lt; 0
+  JL      end
+
+loop:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    <span style="color: #0000ff">$</span>8, SI                // SI +<span style="border: 1px solid #FF0000">=</span> sizeOf(int)
+  ADDQ    <span style="color: #0000ff">$</span>8, R8                // R8 +<span style="border: 1px solid #FF0000">=</span> sizeOf(float64)
+
+  SUBQ    <span style="color: #0000ff">$</span>1, AX                // do...while(--k &gt;<span style="border: 1px solid #FF0000">=</span> 0)
+  JGE     loop
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>It should be clear from the code that we have substituted a single <code>SUBQ</code> instruction for both the <code>INCQ</code> instruction incrementing the loop counter and the <code>CMPQ</code> instruction that preceded the conditional jump instruction at the end of the loop in the previous version.  However, we have also added two additional <code>ADDQ</code> instructions to advance the pointers (<code>SI</code> and <code>R8</code>) through <code>x</code> and <code>indx</code> every iteration of the loop.  As we are now using pointers to access the elements of <code>x</code> and <code>indx</code> rather than indexing with the loop counter, the addressing of the data looks much cleaner and will have lower overhead on some architectures.</p>
+
+<p>Lets check the impact of our changes on performance.</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+</code></pre>
+
+<p>In all cases, this version performs slightly worse than the previous version.  This is most likely caused by additional overhead due to advancing the 2 pointers, <code>SI</code> and <code>R8</code>.  However, this change will allow us to now make other optimisations where we will realise the benefit.</p>
+
+<h2 id="5-loop-unrolling">5. Loop unrolling</h2>
+
+<p>To reduce the overhead from advancing pointers introduced in the previous optimisation, we will use <a href="https://en.wikipedia.org/wiki/Loop_unrolling"><em>Loop unrolling</em></a> to spread this overhead and decrease the number of times it is executed.  <em>Loop unrolling</em> (or loop unwinding as it is sometimes referred to) is a technique to reduce loop overhead by decreasing the number of times loop conditions are evaluated, pointer arithmetic is executed and the number of jumps (which are expensive).  Simply put, the body of the loop is duplicated multiple times which in our case means processing multiple vector elements per iteration of the loop.  For our use case we will unroll the loop 4 times i.e. duplicate the body of the loop 4 times and process 4 vector elements per loop iteration.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+
+<span style="border: 1px solid #FF0000">//</span> func Dot5(x []float64, indx []int, y []float64) (dot float64)
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot5(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10             // indx[i]
+  MOVSD   (R8), X1              // x[i]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    8(SI), R10            // indx[i+1]
+  MOVSD   8(R8), X1             // x[i+1]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    16(SI), R10           // indx[i+2]
+  MOVSD   16(R8), X1            // x[i+2]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    24(SI), R10           // indx[i+3]
+  MOVSD   24(R8), X1            // x[i+3]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    <span style="color: #0000ff">$</span>32, SI               // SI +<span style="border: 1px solid #FF0000">=</span> 4 * sizeOf(int)
+  ADDQ    <span style="color: #0000ff">$</span>32, R8               // R8 +<span style="border: 1px solid #FF0000">=</span> 4 * sizeOf(float64)
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX                // decrement loop counter by 4
+  JGE     loop
+
+tailstart:
+  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  JE      end
+
+tail:
+  <span style="border: 1px solid #FF0000">//</span> process any remaining elements if len(indx) is not divisible by 4
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    <span style="color: #0000ff">$</span>8, SI
+  ADDQ    <span style="color: #0000ff">$</span>8, R8
+
+  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  JNE     tail
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>We can see in the code above that we have repeated the instructions from the body of the loop 4 times, processing 4 elements per iteration of the loop.  Each repeated instruction addresses the next vector element (+0, +1, +2, +3) and each iteration of the loop, the loop counter is decremented by 4 and the pointers are advanced by 4 elements.  It should also be noted that we have replicated the loop, without unrolling, under the <code>tail</code> label.  This is to handle vectors of lengths that are not exactly divisible by 4 - the <code>tail</code> section handles the remaining 1-3 elements after processing most of the elements in the main unrolled section.</p>
+
+<p>Lets look at how this version compares with our previous benchmarks.</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+</code></pre>
+
+<p>Whilst this appears to improve on our previous version in some cases, it is still slower than some of our earlier optimised versions.  Many modern CPUs are able to achieve a degree of parallelism through <a href="https://en.wikipedia.org/wiki/Out-of-order_execution">out-of-order</a> execution to make use of instruction cycles that would otherwise be wasted.  By unrolling the loop we have created some additional dependencies within the loop which limit the amount of out-of-order execution.  Unrolling the loop allows us to make other optimisations, and the next will address the dependencies we have created.</p>
+
+<h2 id="6-software-pipelining">6. Software Pipelining</h2>
+
+<p>Using <a href="https://en.wikipedia.org/wiki/Software_pipelining">Software pipelining</a> we can re-order the instructions to reduce the dependencies between adjacent instructions optimising for out-of-order execution.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+
+<span style="border: 1px solid #FF0000">//</span> func Dot6(x []float64, indx []int, y []float64) (dot float64)
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot6(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0            // Use 2 accumulators to break dependency
+  XORPS   X9, X9            // chain and better pipelining
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10         // indx[i]
+  MOVQ    8(SI), R11        // indx[i+1]
+  MOVQ    16(SI), R12       // indx[i+2]
+  MOVQ    24(SI), R13       // indx[i+3]
+
+  MOVSD   (R8), X1          // x[i]
+  MOVSD   8(R8), X3         // x[i+1]
+  MOVSD   16(R8), X5        // x[i+2]
+  MOVSD   24(R8), X7        // x[i+3]
+
+  MULSD   (DX)(R10*8), X1
+  MULSD   (DX)(R11*8), X3
+  MULSD   (DX)(R12*8), X5
+  MULSD   (DX)(R13*8), X7
+
+  ADDSD   X1, X0
+  ADDSD   X3, X9
+  ADDSD   X5, X0
+  ADDSD   X7, X9
+
+  ADDQ    <span style="color: #0000ff">$</span>32, SI
+  ADDQ    <span style="color: #0000ff">$</span>32, R8
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  JGE     loop
+
+tailstart:
+  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  JE      end
+
+tail:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    <span style="color: #0000ff">$</span>8, SI
+  ADDQ    <span style="color: #0000ff">$</span>8, R8
+
+  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  JNE     tail
+
+end:
+  ADDSD   X9, X0            // Add accumulators together
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>We can see in the code above, we have re-ordered the instructions in the main loop - effectively so that instructions dependent on other instructions appear further away from each other - this allows better instruction level parallelism through out-of-order execution within the CPU.  We have also added an additional accumulator to reduce the dependencies when accumulating all of the element products.  The two accumulators are added together at the end to form the final dot product.</p>
+
+<p>Lets see the impact of our changes and compare with our previous benchmarks.</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot6-4        	100000000	        10.3 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot6-4      	20000000	        59.7 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot6-4    	 2000000	       746 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  100000	     11971 ns/op
+</code></pre>
+
+<p>It should be clear from the benchmarks that this latest version is significantly faster than the others.</p>
+
+<h2 id="7-vectorisation">7. Vectorisation</h2>
+
+<p>The final optimisation we will apply is called <a href="https://en.wikipedia.org/wiki/Automatic_vectorization">Vectorisation</a>.  Vectorisation is a form of parallelisation where a scalar implementation (processing a single pair of operands at a time) is converted so that a single operation is applied to multiple pairs of operands simultanteously.  This can be achieved through the use of <a href="https://en.wikipedia.org/wiki/SIMD">SIMD</a> (Single Instruction, Multiple Data) instructions which are supported on most modern commodity CPUs.  Intel&rsquo;s MMX, SSE and AVX extensions provide SIMD support.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+
+<span style="border: 1px solid #FF0000">//</span> func Dot7(x []float64, indx []int, y []float64) (dot float64)
+TEXT <span style="border: 1px solid #FF0000">·</span>Dot7(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0
+  XORPS   X9, X9
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10
+  MOVQ    8(SI), R11
+  MOVQ    16(SI), R12
+  MOVQ    24(SI), R13
+
+  MOVUPD  (R8), X1            // Load x[i:i+1] into vector register
+  MOVUPD  16(R8), X3          // Load x[i+2:i+3] into vector register
+
+  MOVLPD  (DX)(R10*8), X2
+  MOVHPD  (DX)(R11*8), X2
+  MOVLPD  (DX)(R12*8), X4
+  MOVHPD  (DX)(R13*8), X4
+
+  MULPD   X2, X1              // multiply 2 pairs of elements
+  MULPD   X4, X3              // multiply 2 pairs of elements
+
+  ADDPD   X1, X0              // add the pair of products to the pairs of accumulators
+  ADDPD   X3, X9              // add the pair of products to the pairs of accumulators
+
+  ADDQ    <span style="color: #0000ff">$</span>32, SI
+  ADDQ    <span style="color: #0000ff">$</span>32, R8
+
+  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  JGE     loop
+
+tailstart:
+  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  JE      end
+
+tail:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    <span style="color: #0000ff">$</span>8, SI
+  ADDQ    <span style="color: #0000ff">$</span>8, R8
+
+  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  JNE     tail
+
+end:
+  ADDPD   X9, X0          // Add accumulators together
+  MOVSD   X0, X7
+  UNPCKHPD X0, X0         // Unpack vector register and
+  ADDSD   X7, X0          // add the 2 values together
+
+  MOVSD   X0, dot+72(FP)
+  RET
+</pre></div>
+
+<p>Using Intel&rsquo;s SSE extensions we can operate on pairs of elements at a time.  Unfortunatly, due to the nature of sparse matrices, we are performing an implicit <a href="https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)">gather</a> operation when loading elements from <code>y</code>.  This means we have to load each element of <code>y</code> individually and then pack them, in pairs, into the SSE vector registers.  In contrast, as we are processing the elements of <code>x</code> sequentially we can directly load the elements 2 at a time.</p>
+
+<p>Lets compare the results with our previous benchmarks.</p>
+
+<pre><code>BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot6-4        	100000000	        10.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot7-4        	200000000	         9.14 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot6-4      	20000000	        59.7 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot7-4      	30000000	        43.4 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot6-4    	 2000000	       746 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot7-4    	 2000000	       701 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  100000	     11971 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot7-4  	  200000	     11648 ns/op
+</code></pre>
+
+<p>We can see from the benchmarks that this optimisation has yielded further performance gains.</p>
+
+<h2 id="wrapping-up">Wrapping up</h2>
+
+<p>Reviewing the benchmarks we can see that in most cases, each optimisation provided incremental gains over the last.  In some cases however, certain optimisations actually resulted in a performance decrease.  This is because for some optimisations, the benefits are only realised when combined with other optimisations or are important because they open the door for other optimisations that would not have been possible otherwise.</p>
+
+
+<figure >
+    <a href="/post/optimising-go-code-with-assembler-graphs.png">
+        <img src="/post/optimising-go-code-with-assembler-graphs.png" alt="Benchmarked performance of each algorithm" />
+    </a>
+    
+</figure>
+
+
+<p>The cumulative effect of all our optimisations is significantly faster than the original Golang version.  Where this function is used as a basic building block for other operations e.g. the inner loop of matrix multiplication, this improvement is effectively multiplied and will have an even bigger impact on performance.  It is however worth bearing in mind that these performance gains come at the cost of additional complexity, there is more code that is relatively complex and so harder to maintain.  This trade-off should be considered carefully when choosing to optimise code in this way.  It is also worth considering that some of these optimisations may work better or worse on specific CPU architectures so your mileage may vary.</p>
+
+
+       
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Optimising%20Go%20code%20with%20Assembler&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2foptimising-go-code-with-assembler%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2foptimising-go-code-with-assembler%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2foptimising-go-code-with-assembler%2f&amp;description=Optimising%20Go%20code%20with%20Assembler"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2foptimising-go-code-with-assembler%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/optimising-go-code-with-assembler\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

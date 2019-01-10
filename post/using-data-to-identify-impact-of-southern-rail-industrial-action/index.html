@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:image" content="http://www.jamesbowman.me//post/southernrail/area-served-by-southern.png"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Using data to identify the impact of Southern Rail industrial action"/>
+<meta name="twitter:description" content="Using open data on house prices from the UK Land Registry to analyse impact of Southern Rail industrial action with R and Go"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Using data to identify the impact of Southern Rail industrial action &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/" />
+
+    
+    <meta property="og:description" content="Using open data on house prices from the UK Land Registry to analyse impact of Southern Rail industrial action with R and Go" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="og:image" content="http://www.jamesbowman.me//post/southernrail/area-served-by-southern.png" />
+    
+    <meta property="article:published_time" content="2017-01-10T15:17:18Z" />
+
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="data" />
+    
+    <meta property="article:tag" content="analytics" />
+    
+    <meta property="article:tag" content="r" />
+    
+    <meta property="article:tag" content="go" />
+    
+    <meta property="article:tag" content="csv" />
+    
+    <meta property="article:tag" content="scraping" />
+    
+    <meta property="article:tag" content="heat maps" />
+    
+    <meta property="article:tag" content="visualisation" />
+    
+    <meta property="article:tag" content="southern rail" />
+    
+    <meta property="article:tag" content="property prices" />
+    
+    <meta property="article:tag" content="open data" />
+    
+    <meta property="article:tag" content="government" />
+    
+    <meta property="article:tag" content="land registry" />
+    
+    
+
+    
+  
+    <title>Using data to identify the impact of Southern Rail industrial action &middot; James Bowman</title>
+
+    
+    <meta name="description" content="Using open data on house prices from the UK Land Registry to analyse impact of Southern Rail industrial action with R and Go" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Using data to identify the impact of Southern Rail industrial action",
+    "name": "Using data to identify the impact of Southern Rail industrial action",
+    "wordCount":  1156 ,
+    "timeRequired": "PT6M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/",
+    "datePublished": "2017-01-10T15:17Z",
+    "dateModified": "2017-01-10T15:17Z",
+    
+    "image": {
+        "@type": "ImageObject",
+        "url": "http://www.jamesbowman.me//post/southernrail/area-served-by-southern.png",
+        "width": 3000,
+        "height": 1445
+    },
+    
+    
+    "keywords": "development, data, analytics, r, go, csv, scraping, heat maps, visualisation, southern rail, property prices, open data, government, land registry",
+    "description": "Using open data on house prices from the UK Land Registry to analyse impact of Southern Rail industrial action with R and Go",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+  
+  <header class="main-header post-head" style="background-image: url(http://www.jamesbowman.me//post/southernrail/area-served-by-southern.png)">
+  
+  <nav class="main-nav overlay clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Using data to identify the impact of Southern Rail industrial action</h1>
+        <small>Using open data on house prices from the UK Land Registry to analyse impact of Southern Rail industrial action with R and Go</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2017-01-10T15:17:18Z">
+            Jan 10, 2017
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/data/">#data</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/analytics/">#analytics</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/r/">#r</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/go/">#go</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/csv/">#csv</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/scraping/">#scraping</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/heat-maps/">#heat maps</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/visualisation/">#visualisation</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/southern-rail/">#southern rail</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/property-prices/">#property prices</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/open-data/">#open data</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/government/">#government</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/land-registry/">#land registry</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      <p>I, like many others, have been affected by the ongoing industrial dispute over Driver Only Operation (DOO) on Southern Railways.  On some days this amounts to delayed or cancelled trains with extended journey times and the inconvenience of standing all the way into London and on others, like today, strikes leave no viable way of getting to work in London at all.</p>
+
+<p>There have been many attempts to measure and demonstrate the impact of the industrial action such as the use of the <a href="https://twitter.com/hashtag/todayimissed">#todayimissed</a> hashtag on Twitter (see below), <a href="http://www.huffingtonpost.co.uk/entry/southern-rail-strike-survey_uk_58691a0ee4b0f24da6e921bb">a recent passenger survey</a> conducted by The Association of British Commuters and even a tongue-in-cheek <a href="http://www.bbc.co.uk/news/uk-england-36825721">video game</a>.  Whilst certainly compelling, these have all largely been qualitative rather than quantitative.  I have heard tales of people losing or missing out on jobs due to continued lateness or based on where they live and, more recently, quite a lot of people moving job or house so they avoid Southern Rail for their commute to/from work.  This got me thinking and I started to wonder whether there was any correlation between the industrial action and property prices in the affected areas.</p>
+
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr"><a href="https://twitter.com/hashtag/todayimissed?src=hash&amp;ref_src=twsrc%5Etfw">#todayimissed</a> saying goodnight to my children again <a href="https://twitter.com/hashtag/southernfail?src=hash&amp;ref_src=twsrc%5Etfw">#southernfail</a> <a href="https://t.co/hI1dCjLRid">pic.twitter.com/hI1dCjLRid</a></p>&mdash; James Bowman (@JameseBowman) <a href="https://twitter.com/JameseBowman/status/778504806264672256?ref_src=twsrc%5Etfw">September 21, 2016</a></blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+
+<p>In recent years, the UK government has started publishing lots of their data, making it freely available to the public and developers to use for third-party applications.  I visited <a href="https://www.gov.uk/government/statistical-data-sets/uk-house-price-index-data-downloads-october-2016">www.gov.uk</a> and found the UK Land Registry data for house prices available for download as a <a href="https://en.wikipedia.org/wiki/Comma-separated_values">CSV</a> file.  This data set gives us the monthly average price of completed property transactions for each local authority.  Unfortunately, this is a &lsquo;trailing&rsquo; indicator as most property transactions take months to complete but it is a good place to start.  The data is currently only available up until October 2016 with further data added each month (November&rsquo;s data will be available later this month on the 17th January, December&rsquo;s in February, etc.).</p>
+
+<p>After downloading the Land Registry data and some <a href="https://github.com/james-bowman/southerntrains">basic manipulation</a> in <a href="https://www.r-project.org/about.html">R</a> we can visualise the geographical distribution of property prices (transactions) across Great Britan (as at October 2016) using <a href="http://www.openheatmap.com/">OpenHeatMap</a>.  In this heatmap, shown below, the darker areas correspond to higher average property prices in transactions during October and conversely, lighter areas correspond to lower average prices.</p>
+
+
+<figure >
+    <a href="/post/southernrail/uk-house-prices-10-2016.png">
+        <img src="/post/southernrail/uk-house-prices-10-2016.png" alt="UK House Prices 10/2016" />
+    </a>
+    
+</figure>
+
+
+<p>We can see from the visualisation that the average house price in and around London is higher than other parts of Britan.  As Southern Rail extends into London it seems likely the average property price in the area served by Southern Rail will be higher than the national average.  For our analysis, using the trend of house price movements over time will be more useful than absolute values.</p>
+
+<p>Now we have the property prices by area, we need a way of comparing the nationwide prices with those for the area affected by the Southern Rail dispute.  We need to define the affected area or, perhaps more specifically, the local authorities which include train stations served by Southern Rail.  Hunting around the internet I struggled to find useable data on train routes or schedules until I stumbled across the data I needed on Wikipedia.  Unlike most other sources I found, Wikipedia lists the stations served by each train operating company, rather than just the stations they operate.  This is important, because Southern Rail trains serve a number of stations operated by London Underground and other operating companies.</p>
+
+
+<figure >
+    <a href="/post/southernrail/wikipedia-screen-shot.png">
+        <img src="/post/southernrail/wikipedia-screen-shot.png" alt="Infobox Vcard data for each train station on Wikipedia (screenshot from Wikipedia)" />
+    </a>
+    
+</figure>
+
+
+<p>Wikipedia has a page for each station which contains relevant detail in the infobox vcard on the right (shown in the screen shot above) including the local authority that we can use to cross reference the Land Registry house price data.  I did not fancy manually trawling wikipedia for the ~200 stations served by Southern so I wrote a simple <a href="https://golang.org/">Go</a> program to crawl Wikipedia and scrape the data I needed.</p>
+
+<p>The result was a complete list of stations served by Southern and the associated local authority within which they reside.  The area covered by these local authorities is shown in the map below.</p>
+
+
+<figure >
+    <a href="/post/southernrail/area-served-by-southern.png">
+        <img src="/post/southernrail/area-served-by-southern.png" alt="Area Served by Southern Rail (sourced from Wikipedia)" />
+    </a>
+    
+</figure>
+
+
+<p>Unfortunately, there were a lot of inconsistencies in the data scraped from Wikipedia.  Some of the Local Authority names did not match those used in the Land Registry data and were even inconsistent within Wikipedia between pages e.g. <code>Ashford</code> and <code>Borough of Ashford</code>, <code>Brighton and Hove</code> and <code>Brighton &amp; Hove</code>, etc.</p>
+
+
+<figure >
+    <a href="/post/southernrail/data-inconsistencies.png">
+        <img src="/post/southernrail/data-inconsistencies.png" alt="Inconsistencies in data scraped from Wikipedia" />
+    </a>
+    
+</figure>
+
+
+<p>Some basic string manipulation in our <a href="https://github.com/james-bowman/southerntrains">R script</a> allows us to clean up the wikipedia data and remove any inconsistencies.  Once all of the inconsistencies have been removed and we are satisfied that every Local Authority in the stations dataset references a valid Local Authority from the Land Registry data, we are ready to cross reference the 2 data sets and visualise the results.  I have plotted the average property prices by transaction since January 2016 up to and including October 2016 across local authorities served by Southern Rail and across Great Britan as a whole as a comparison.  The resulting plot is shown below.</p>
+
+
+<figure >
+    <a href="/post/southernrail/prices.png">
+        <img src="/post/southernrail/prices.png" alt="Comparison of average house prices nationwide and in Southern Rail Area" />
+    </a>
+    
+</figure>
+
+
+<p>It is clear that, as we predicted, the average price for the area served by Southern Rail is higher than the national average.  The two lines track almost identically except that in October, whilst the national average price continues to rise (albeit slightly), the prices in the area served by Southern Rail decline.  To be specific, the decline in average property price transactions across the Southern Rail area between September and October in 2016 is £2446.66 or approximately 0.6%.</p>
+
+<p>As with any results, these are open to interpretation and we must consider that this is only a single data point and a trend usually requires at least 3.  Furthermore, we could argue that although the dispute has been going on since around April time, it is still too soon to see any impact manifest in property transactions (as it is a trailing indicator and we only have house price data up until October).  This analysis assumes equal exposure to impact from train disruption across all local authorities but in practice, some local authorities will be more deeply affected than others with different percentages of the population relying on the trains.  Considering census data on how people travel to work could be a future enhancement.  Additionally, people residing outside the Southern area, but who drive to Southern train stations to catch trains are not accounted for in this analysis.  Finally, and perhaps most importantly, we have identified a <a href="https://xkcd.com/552/">correlation and not necessarily a causation</a> - any change observed in property prices is not necessarily as a direct result of the industrial action.</p>
+
+<p>Whilst it is perhaps still too early to draw conclusions, I have enjoyed working with the data and will be interested to see what happens in the coming months as more data becomes available.  The code used to process, cleanse, analyse and visualise the data is available on Github <a href="https://github.com/james-bowman/southerntrains">here</a>.  I hope you have found my experiences interesting, please share your own experiences or thoughts in the comments section below.</p>
+
+
+       
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Using%20data%20to%20identify%20the%20impact%20of%20Southern%20Rail%20industrial%20action&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fusing-data-to-identify-impact-of-southern-rail-industrial-action%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fusing-data-to-identify-impact-of-southern-rail-industrial-action%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fusing-data-to-identify-impact-of-southern-rail-industrial-action%2f&amp;description=Using%20data%20to%20identify%20the%20impact%20of%20Southern%20Rail%20industrial%20action"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fusing-data-to-identify-impact-of-southern-rail-industrial-action%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/using-data-to-identify-impact-of-southern-rail-industrial-action\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

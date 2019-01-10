@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        <meta name="twitter:card" content="summary"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Continuous delivery pipeline for blogging with Hugo and Wercker"/>
+<meta name="twitter:description" content="Setting up a continuous delivery pipeline for a blog site with Hugo, Wercker and GitHub Pages"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Continuous delivery pipeline for blogging with Hugo and Wercker &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/cd-pipeline-for-blogging/" />
+
+    
+    <meta property="og:description" content="Setting up a continuous delivery pipeline for a blog site with Hugo, Wercker and GitHub Pages" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="article:published_time" content="2015-07-06T19:13:19&#43;01:00" />
+
+    
+    <meta property="article:tag" content="blog" />
+    
+    <meta property="article:tag" content="cd" />
+    
+    <meta property="article:tag" content="git" />
+    
+    <meta property="article:tag" content="github" />
+    
+    <meta property="article:tag" content="wercker" />
+    
+    <meta property="article:tag" content="hugo" />
+    
+    <meta property="article:tag" content="go" />
+    
+    <meta property="article:tag" content="golang" />
+    
+    
+
+    
+  
+    <title>Continuous delivery pipeline for blogging with Hugo and Wercker &middot; James Bowman</title>
+
+    
+    <meta name="description" content="Setting up a continuous delivery pipeline for a blog site with Hugo, Wercker and GitHub Pages" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/cd-pipeline-for-blogging/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Continuous delivery pipeline for blogging with Hugo and Wercker",
+    "name": "Continuous delivery pipeline for blogging with Hugo and Wercker",
+    "wordCount":  1431 ,
+    "timeRequired": "PT7M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/cd-pipeline-for-blogging/",
+    "datePublished": "2015-07-06T19:13Z",
+    "dateModified": "2015-07-06T19:13Z",
+    
+    
+    "keywords": "blog, cd, git, github, wercker, hugo, go, golang",
+    "description": "Setting up a continuous delivery pipeline for a blog site with Hugo, Wercker and GitHub Pages",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/cd-pipeline-for-blogging/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+<header class="main-header post-head no-cover">
+  <nav class="main-nav clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Continuous delivery pipeline for blogging with Hugo and Wercker</h1>
+        <small>Setting up a continuous delivery pipeline for a blog site with Hugo, Wercker and GitHub Pages</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2015-07-06T19:13:19&#43;01:00">
+            Jul 6, 2015
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/blog/">#blog</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/cd/">#cd</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/git/">#git</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/github/">#github</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/wercker/">#wercker</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/hugo/">#hugo</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/go/">#go</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/golang/">#golang</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>This is the start of my new blog.  It is something I have been meaning to do for a long time but somehow never quite got around to.  Part of the problem for me was choosing a blogging platform and tool chain - I was overwhelmed by the number of different options available.  I know lots of people use platforms like <a href="https://wordpress.com/">Wordpress</a> but I always liked the idea of static generators like <a href="http://jekyllrb.com/">Jekyll</a>.</p>
+
+<p>I recently stumbled across <a href="http://gohugo.io">Hugo</a>.  Hugo is a static generator like <a href="http://jekyllrb.com/">Jekyll</a> where content (usually written in <a href="https://en.wikipedia.org/wiki/Markdown">markdown</a>) is rendered offline as static HTML and then published to a hosting platform.  A benefit of this approach over using a platform like <a href="https://wordpress.com/">Wordpress</a> is that the generated HTML can be hosted anywhere.  <a href="http://gohugo.io">Hugo</a> interested me in particular because it is written in <a href="https://golang.org/">Go</a>, which I am familiar with, and is reported to be extremely fast (important when waiting for content updates to render).  The steps I originally followed to setup my blog were inspired by <a href="http://gohugo.io/tutorials/automated-deployments/">the tutorial on the Hugo site</a>.</p>
+
+<h2 id="github-and-github-pages">GitHub and GitHub Pages</h2>
+
+<p>I decided to use <a href="https://pages.github.com/">GitHub Pages</a> to host the site since they offer a free personal site for each GitHub account and I intended to use <a href="http://github.com">GitHub</a> for the source content anyway so using the same service for both made sense.</p>
+
+<p>Although I am using GitHub to store both my source content and generated HTML, I wanted to keep them separate and so setup 2 new, empty repositories on GitHub:</p>
+
+<ol>
+<li><code>blog</code> - to store the source content.  The name of this repository is not important but for the remainder of this post, I will refer to it as &lsquo;blog&rsquo;.</li>
+<li><code>&lt;GitHub username&gt;.github.io</code> - to host the generated static HTML.  The name of this repository must exactly match the pattern shown (this is where Github Pages serves the site from).</li>
+</ol>
+
+<p>I use Git on a regular basis to version code I write and am used to using the command line client.  Whilst the steps I describe in the rest of this post assume the use of a command line client, a graphical client could be used to carry out the same operations if preferred.  Either command line or graphical client can be downloaded from the following URL:</p>
+
+<p><a href="https://git-scm.com/downloads">https://git-scm.com/downloads</a></p>
+
+<h2 id="hugo">Hugo</h2>
+
+<p><a href="http://gohugo.io">Hugo</a> is an open source static site generator developed in <a href="https://golang.org/">Go</a>.  It is designed to be executed from the command line and it can be downloaded and installed locally.  It can be downloaded from the following URL:</p>
+
+<p><a href="https://github.com/spf13/hugo/releases">https://github.com/spf13/hugo/releases</a></p>
+
+<p>Once installed, it can be executed on the command line to setup an initial workspace for all source site content.  The following command will create a subdirectory called <code>blog</code> within the current directory containing the initial workspace and directory structure for your Hugo site.</p>
+
+<pre><code>hugo new site blog
+</code></pre>
+
+<p>Once the workspace has been created we will need to add it to our GitHub repository.  First, so that Git does not try to version control the generated HTML as part of this repository (we want to store that in our second repository) I created a <code>.gitignore</code> file inside the <code>blog</code> directory containing <code>/public</code> (/public is the output directory to which our generated HTML will be written).  Then type the following from within the <code>blog</code> directory to add the workspace to GitHub, substituting your GitHub username for <code>&lt;Github username&gt;</code>.</p>
+
+<pre><code>git init
+git add -A .
+git commit -m &quot;initial commit&quot;
+git remote add origin https://github.com/&lt;Github username&gt;/blog.git
+git push -u origin master
+</code></pre>
+
+<p>Hugo uses interchangeable &lsquo;themes&rsquo; to style generated websites.  There are a bunch of pre-developed themes to choose from on <a href="https://github.com/spf13/hugoThemes/">GitHub</a>.  To add one of these themes simply clone it into a <code>theme</code> folder under the content workspace as follows:</p>
+
+<pre><code>mkdir themes
+cd themes
+git clone URL_TO_THEME 
+</code></pre>
+
+<p>Finally edit the <code>config.toml</code> file in the root of the content workspace and update the title and baseurl attributes to the title of your site and <code>http://&lt;Github username&gt;.github.io</code> respectively.</p>
+
+<h3 id="creating-content">Creating Content</h3>
+
+<p>Content in Hugo is stored under the <code>/content</code> folder in the workspace.  To add new content, use the <code>hugo new</code> command to create the file as follows:</p>
+
+<pre><code>mkdir content/post
+hugo new post/hello.md
+</code></pre>
+
+<p>This creates a new content <a href="https://en.wikipedia.org/wiki/Markdown">markdown</a> file pre-populated with hugo meta-data in a header.</p>
+
+<p>Edit the markdown file to add markdown text below the +++ and when finished, change the <code>draft</code> attribute in the header to <code>false</code>.  Now commit and push changes up to Github.</p>
+
+<pre><code>git add .
+git commit
+git push origin master
+</code></pre>
+
+<h3 id="generating-the-html">Generating the HTML</h3>
+
+<p>To generate the site from within the content workspace simply type the following command.  This will render the markdown content files as static HTML and place them in the <code>/public</code> output folder.</p>
+
+<pre><code>hugo --theme=&lt;theme folder name&gt;
+</code></pre>
+
+<p>The specified theme folder name must exactly match the local folder name of the cloned theme e.g. if you are using hyde, the theme will have been cloned into the folder <code>themes/hyde</code> so the following command should be used:</p>
+
+<pre><code>hugo --theme=hyde
+</code></pre>
+
+<h3 id="publishing-to-github-pages">Publishing to GitHub Pages</h3>
+
+<p>Publishing to <a href="https://pages.github.com/">GitHub Pages</a> is as simple as copying the /public directory (containing the generated website) and pushing the contents to the remote <code>&lt;github username&gt;.github.io</code> repository.  GitHub Pages will then serve the HTML from that repository at the following URL: <code>http://&lt;GitHub username&gt;.github.io/</code>.  As an alternative to copying the contents of the /public directory, one could simply create the /public directory as a symbolic link/shortcut to the local copy of the <code>&lt;github username&gt;.github.io</code> repository.</p>
+
+<p>Here is the sequence of commands required to copy the /public directory and push to GitHub Pages:</p>
+
+<pre><code>mkdir ../output
+cd ../output
+git init
+git remote add origin git@github.com:&lt;Github username&gt;/&lt;Github username&gt;.github.io.git
+</code></pre>
+
+<p>Then to push each set of changes:</p>
+
+<pre><code>cd ../output
+cp -R ../blog/public/* . 
+git add .
+git commit -m &quot;generated content&quot;
+git push origin master
+</code></pre>
+
+<p>We have now <a href="#creating-content">created content</a>, <a href="#generating-the-html">rendered it as HTML</a> and <a href="#publishing-to-github-pages">published it</a> to a live website.  This represents all of the component parts of a nice publishing workflow - lets automate it!</p>
+
+<h2 id="automating-the-process-with-wercker">Automating the process with Wercker</h2>
+
+<p><a href="http://wercker.com/">Wercker</a> is a hosted <a href="http://www.thoughtworks.com/continuous-integration">Continuous Integration</a>/<a href="https://en.wikipedia.org/wiki/Continuous_delivery">Continuous Delivery</a> service that has a growing community developing reusable build and deployment pipelines.  It has existing Hugo and GitHub Pages integrations built by the Werker community making it ideal for my needs.</p>
+
+<p>Wercker is free to sign up for an account and you can sign up with your GitHub account.  Once registered, ensure that your account profile is connected to your GitHub account.  This can be achieved by clicking on your icon in the top right hand corner of the screen and then selecting <code>settings</code>.  Then select <code>Git connections</code> to connect your GitHub account.</p>
+
+<p>Now we can setup our pipeline by creating a new application.  Select <code>Create</code> and select <code>Application</code>.  Work through the process of setting up a new application selecting GitHub as the Git provider, and choosing &lsquo;blog&rsquo; as the repository.  Select yourself as the owner and configure access so that <code>wercker will checkout the code without using an SSH key</code>.  Finally uncheck the <code>Docker enabled</code> checkbox and click next step.  You can finally choose whether to make your pipeline public or private.  This is a personal choice and has no impact on how things work.  Werker will now start building your code.</p>
+
+<p>Now we need to create a <code>wercker.yml</code> file in the root of the content workspace (/blog folder).  This file should contain the following:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span>box: wercker/default
+build:
+    steps:
+        - arjen/hugo-build:
+        version: 0.14
+        theme: &lt;theme folder name&gt;
+        config: config.toml
+deploy:
+    steps:
+        - lukevivier/gh-pages@0.2.1:
+        token: $GIT_TOKEN
+        domain: &lt;GitHub username&gt;.github.io
+        basedir: public
+        repo: &lt;GitHub username&gt;/&lt;GitHub username&gt;.github.io
+</pre></div>
+
+<p>Be careful to replace any text within &lt;&gt; with your actual values e.g. <code>&lt;GitHub username&gt;</code> should be replaced with your specific GitHub username.  Once finished, commit and push the wercker.yml file to GitHub:</p>
+
+<pre><code>git add wercker.yml
+git commit -m &quot;Add wercker.yml&quot;
+git push origin master
+</code></pre>
+
+<p>You may have noticed that our wercker.yml file contained a variable: <code>$GIT_TOKEN</code>.  This variable allows us to specify our GitHub access credentials for deploying to GitHub Pages outside of the pipeline and therefore keep them secret.  We will now set the value for this variable but first need to generate a GitHub access token.  Instructions for doing this can be found <a href="https://help.github.com/articles/creating-an-access-token-for-command-line-use/">here</a>.</p>
+
+<p>To set the value for the <code>$GIT_TOKEN</code> variable, select the <code>settings</code> tab within wercker.  Now select <code>pipeline</code> and <code>Add new variable</code>.  Enter <code>$GIT_TOKEN</code> as the <code>Environment Variable</code> and paste your generated GitHub token into the <code>value</code> field.  Check the <code>protected</code> check box so that the token is kept hidden and not displayed.  Finally click the <code>save</code> button to complete the setup.</p>
+
+<p>Now everytime, you commit and push source content changes to the <code>blog</code> repository, Wercker will automatically render the updated content as HTML and publish it to GitHub Pages.</p>
+
+
+       
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Continuous%20delivery%20pipeline%20for%20blogging%20with%20Hugo%20and%20Wercker&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcd-pipeline-for-blogging%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcd-pipeline-for-blogging%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcd-pipeline-for-blogging%2f&amp;description=Continuous%20delivery%20pipeline%20for%20blogging%20with%20Hugo%20and%20Wercker"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcd-pipeline-for-blogging%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/cd-pipeline-for-blogging\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

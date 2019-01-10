@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:image" content="http://www.jamesbowman.me//post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg"/>
+    
+
+
+
+<meta name="twitter:title" content="Continuous delivery tool landscape"/>
+<meta name="twitter:description" content="An overview of the tools supporting CD (Continuous Delivery) and devops practices in 2017"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Continuous delivery tool landscape &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/" />
+
+    
+    <meta property="og:description" content="An overview of the tools supporting CD (Continuous Delivery) and devops practices in 2017" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="og:image" content="http://www.jamesbowman.me//post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg" />
+    
+    <meta property="article:published_time" content="2017-01-30T08:34:52Z" />
+
+    
+    <meta property="article:tag" content="cd" />
+    
+    <meta property="article:tag" content="devops" />
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="tools" />
+    
+    
+
+    
+  
+    <title>Continuous delivery tool landscape &middot; James Bowman</title>
+
+    
+    <meta name="description" content="An overview of the tools supporting CD (Continuous Delivery) and devops practices in 2017" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Continuous delivery tool landscape",
+    "name": "Continuous delivery tool landscape",
+    "wordCount":  478 ,
+    "timeRequired": "PT3M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/",
+    "datePublished": "2017-01-30T08:34Z",
+    "dateModified": "2017-01-30T08:34Z",
+    
+    "image": {
+        "@type": "ImageObject",
+        "url": "http://www.jamesbowman.me//post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg",
+        "width": 3000,
+        "height": 1445
+    },
+    
+    "keywords": "cd, devops, development, tools",
+    "description": "An overview of the tools supporting CD (Continuous Delivery) and devops practices in 2017",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+  
+  <header class="main-header post-head" style="background-image: url(http://www.jamesbowman.me//post/cdlandscape/5666226557_94ce72fc4e_o.jpg)">
+  
+  <nav class="main-nav overlay clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Continuous delivery tool landscape</h1>
+        <small>An overview of the tools supporting CD (Continuous Delivery) and devops practices in 2017</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2017-01-30T08:34:52Z">
+            Jan 30, 2017
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/cd/">#cd</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/devops/">#devops</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/tools/">#tools</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>I have been having a lot of discussions recently about tooling to support continuous delivery and DevOps practices.  There is an incredible and ever increasing array of tools available for these practices.  Whilst a number of vendors have developed <a href="https://dzone.com/articles/continuous-delivery-anti-patterns">one-stop solutions or suites of integrated tools</a>, many of the tools in the space tend to be tightly focused on addressing a particular problem.</p>
+
+<p>Unfortunatley this can be confusing and overwhelming, especially to people starting out, making it difficult to know where to start and which tools to consider.  This can also lead to particular tools being used to solve problems where other types of tools may be better suited.  It is therefore important to consider tools within the context of the broader ecosystem and understand the role each one plays and the specific goal or problem(s) they aim to address.  With this in mind, I thought it might be useful to visualise the broader CD/DevOps tool landscape to provide some context around the available tools and how they each fit within it.</p>
+
+<p>You can see the complete visualisation here:</p>
+
+
+<figure >
+    <a href="/post/cdlandscape/ContinuousDeliveryToolLandscape-fullsize.jpeg">
+        <img src="/post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg" alt="Continuous delivery tool landscape Jan 2017" />
+    </a>
+    
+</figure>
+
+
+<p>I divided the landscape up into 5 high-level phases broadly aligned to a generic application lifecycle: Collaborate, Build, Test, Deploy and Run.  Within each phase, I then attempted to categorise the types of tools available.  Some tools within the same category address slightly different problems and can be considered complimentary to one another e.g. Terraform and Puppet/Chef.  Conversely, some of the tools e.g. MS Team Foundation Server, Go CD, Docker, etc. could appear in multiple categories.  Where this is the case, I have tried to place them once, in the primary category for which they are known.</p>
+
+<h2 id="what-is-not-covered">What is not covered</h2>
+
+<p>Whilst it would be great to show the entire landscape on one page some compromises had to be made and so some categories of tools were omitted.  These include:</p>
+
+<ul>
+<li>Service Discovery and global Configuration stores e.g. Consul, ZooKeeper, etcd, etc.</li>
+<li>Security management and monitoring tools (Privileged Account Management, intrusion detection, secret management and certificate management) e.g. CyberArk, Snort, Tripwire, Fortify, Vault, Let’s Encrypt, etc.</li>
+<li>Static code analysis tools i.e. cyclometric complexity, coverage, quality, standards, etc.</li>
+<li>Programming languages, tools and frameworks e.g. compilers, IDEs, Frameworks like DropWizard/Nancy/etc.</li>
+<li>Mocking tools for testing e.g. Mockito</li>
+<li>Quality Management tools e.g. HPE QC</li>
+<li>Release Management tools e.g. LaunchDarkly</li>
+<li>Cloud vendor specific tools &amp; toolchains e.g. Cloudformation and CodeDeploy for AWS</li>
+<li>Platform/Device specific development toolchains e.g. Native mobile apps, IoT, etc.</li>
+</ul>
+
+<h2 id="wrap-up">Wrap up</h2>
+
+<p>The visualisation is not intended to be exhaustive or represent any form of recommendation or endorsement.  It would be interesting to hear other people&rsquo;s perspectives and experiences.  Have you used other tools that belong in this visualisation?  Does the visualisation resonate with your own experiences and have you used some of the tools shown?  Are there any categories you feel missing?  If so, please comment and share your thoughts and experiences.</p>
+
+
+       
+    <div class="index-content post">
+        <div class="post-meta">
+            <sub>
+        Cover photo: <a href="https://www.flickr.com/photos/thelearningcurvedotca/5666226557/in/photolist-9CGTKk-4Btkot-4Btktr-87uhSr-8osTy-9svYGE-8j2FPs-4fVeMf-Fppkv-oW9WhF-nFnDEA-4d52wB-cXs2n-k5ZFc-6Snb1-niC99x-6aRnQN-3rThWk-qs68e8-6dFaYQ-5jsdCA-9tmFyT-3acUTk-7ATuoW-gGoJ4j-4BxBSC-cn8Mu-4BxBDu-4h4FfJ-8VpcTK-5wmsZ-3K2DPi-4FEQ1Q-MDu7-6989qm-4pxcPw-KWqRy-4o8YT-iWheoe-4aa7tW-9QkrJh-3Y98RR-5xF9ff-cWwCRo-dj5KU8-nXdRv-jH6mq5-gxRP1f-w46E-4cdkAS">Speed</a> by Brian Carson, available under a <a href="https://creativecommons.org/licenses/by-nc-sa/2.0/">Creative Commons Attribution-NonCommercial-ShareAlike 2.0 Generic license</a>
+            </sub>
+        </div>
+    </div>
+    
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Continuous%20delivery%20tool%20landscape&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcontinuous-delivery-tool-landscape%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcontinuous-delivery-tool-landscape%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcontinuous-delivery-tool-landscape%2f&amp;description=Continuous%20delivery%20tool%20landscape"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fcontinuous-delivery-tool-landscape%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/continuous-delivery-tool-landscape\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Enterprise Architecture on James Bowman</title>
+    <link>http://www.jamesbowman.me/tags/enterprise-architecture/index.xml</link>
+    <description>Recent content in Enterprise Architecture on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/tags/enterprise-architecture/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Standardisation in the Enterprise</title>
+      <link>http://www.jamesbowman.me/post/standardisation-in-the-enterprise/</link>
+      <pubDate>Tue, 09 Feb 2016 07:49:02 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/standardisation-in-the-enterprise/</guid>
+      <description>
+
+&lt;p&gt;In enterprises there is often a strong desire to standardise.  The reasoning is simple: if we are all doing things the same way, using the same technology, then we can simplify our operations, benefit from economies of scale and make our people more fungible.  So by extension, not standardising means duplicated effort, resources and expenditure.  But are things really this clear cut?&lt;/p&gt;
+
+&lt;p&gt;Perhaps we should begin by thinking about the meaning of the word standardisation and understanding the alternatives.  &lt;a href=&#34;https://en.wikipedia.org/wiki/Standardization&#34;&gt;Wikipedia defines standardisation&lt;/a&gt; as:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Standardization or standardisation is the process of implementing and developing technical standards. Standardization can help to maximize compatibility, interoperability, safety, repeatability, or quality. It can also facilitate commoditization of formerly custom processes.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As an interesting aside, there is no mention of &lt;em&gt;uniformity&lt;/em&gt; in this definition even though the two terms are frequently used synonomously in many enterprises.  Standardisation is often interpreted as application standardisation - normalising and consolidating to uniform, and often centralised, applications and tools.  However, it is important to note there are other types of standards beyond applications - more on these later.&lt;/p&gt;
+
+&lt;p&gt;Most Thesaurus&amp;rsquo; would say the opposite of the word standardisation is &lt;em&gt;deviation&lt;/em&gt; which conjours up all sorts of negative conotations.  I would argue that more accurate words to describe the opposite of standardisation, in this context, are &lt;em&gt;diversification&lt;/em&gt; and &lt;em&gt;customisation&lt;/em&gt;.  And, unlike &lt;em&gt;deviation&lt;/em&gt;, it turns out there are many benefits to diversification and customisation:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Lower risk&lt;/strong&gt; - reduced exposure to a single key technology, application or supplier&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Increased responsiveness and agility&lt;/strong&gt; - greater autonomy with fewer dependencies and lower impact of change&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Potentially increased productivity and/or revenue&lt;/strong&gt; - tailoring of experience, applications, practices and processes to best suit territories, teams and customers involved&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So it seems that both approaches (standardisation and customisation/diversification) have their own, albeit different, sets of benefits and drivers.  Standardisation is often bourne out of attempts to optimise the bottom line (costs) where as diversification and customisation tend to come about when optimising the top line (revenue).  Of course in reality, things are much more complicated.&lt;/p&gt;
+
+
+
+
+
+
+
+
+
+
+&lt;blockquote&gt;
+&lt;a class=&#34;bloglogo&#34; href=&#34;#&#34; onclick=&#34;window.open(&#39;https://twitter.com/intent/tweet?text=%27Trying+to+reduce+costs+through+standardisation+often+simply+pushes+the+costs+elsewhere.%27+-+http%3A%2F%2Fwww.jamesbowman.me%2Fpost%2Fstandardisation-in-the-enterprise%2F%3Futm_source%3Dtwitter.com%26utm_campaign%3Dclicktotweet%26utm_medium%3Dsocial+by+%40jamesebowman&#39;, &#39;_blank&#39;, &#39;width=500,height=350&#39;); return false;&#34; style=&#34;text-decoration:none;&#34;&gt;
+&lt;p&gt;Trying to reduce costs through standardisation often simply pushes the costs elsewhere.&lt;/p&gt;
+&lt;span style=&#34;color:#00aced;&#34;&gt;&lt;span class=&#34;icon-twitter&#34; style=&#34;font-size:1.5em;&#34;&gt;&lt;/span&gt; Tweet this&lt;/span&gt;&lt;/a&gt;
+&lt;/blockquote&gt;
+
+
+
+&lt;p&gt;Trying to reduce costs through standardisation often simply pushes the costs elsewhere.  For example, consider an organisation comprising 5 separate business units.  Each business unit does similar things but is discreet, perhaps because they are based in different territories or perhaps because they were formerly part of other companies that were acquired.  Each business unit have their own application(s) supporting their own processes, product sets and data structures.  As part of any attempt to consolidate the 5 software applications into one standardised application the organisation must either:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;Force all business units to adopt the same uniform, and potentially sub-optimal, business processes, product sets and data structures that will be, by definition, a compromise.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;or&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Deal with the complexity and costs of supporting the 5 divergent business processes, product sets and data structures within a single application.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Neither of these options is particular appealing and may ironically cause an increase in cost rather than the desired reduction.  Furthermore, any changes to the application for a particular business unit must now be funneled along with all the changes for the 4 other business units and their impact considered for all 5 business units.  This will result in higher costs and significantly increased lead times for changes.&lt;/p&gt;
+
+&lt;p&gt;This phenomonon is often explained using an adage called &lt;a href=&#34;https://en.wikipedia.org/wiki/Conway%27s_law&#34;&gt;Conway&amp;rsquo;s Law&lt;/a&gt;.  It states that:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Any organisation that designs a system (defined more broadly here than just information systems) will inevitably produce a design whose structure is a copy of the organization&amp;rsquo;s communication structure.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The adage illustrates the importance of considering the organisational structure and business processes alongside software applications.  If we attempt to consolidate systems without considering the teams using them we can create misalignment between the organisational structure and systems and incur significant costs as a result.  Clearly, in our increasingly competitive market environments, where businesses are trying to accelerate the development and rollout of new products and services, such costs and delays could lead to missed opportunities.&lt;/p&gt;
+
+&lt;h2 id=&#34;platforms-the-best-of-both-worlds&#34;&gt;Platforms - the Best of Both Worlds?&lt;/h2&gt;
+
+&lt;p&gt;Applications have predefined business logic and data structures that narrow their scope and restrict their ability to support divergent business processes and product sets.  In contrast, platforms focus on the truly common, commodity capabilities and separate out the variable logic and data structures, allowing them to diverge.  Platforms strike a balance between standardising and diversifying/customising by splitting the problem domain into that which is truly common (the platform) and that which should be allowed to diverge (the customised items on top of the platform).  Interestingly, platforms are usually driven out of a desire to accelerate product development rather than control costs.&lt;/p&gt;
+
+&lt;p&gt;Platforms essentially represent a set of standards or constraints that all the things supported by the platform must conform to.  In return for conforming to these constraints, they are able to leverage all the facilities and capabilities offered by the supporting platform.  In principle, platforms could be built to support anything providing it conforms to the constraints imposed by the platform.  This could include applications, product sets or even business processes.&lt;/p&gt;
+
+&lt;p&gt;Platforms are typically successful when they meet the following 3 criteria:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;The platform is tightly focused and completely generalised with any variability pushed out into the items it supports.&lt;br /&gt;&lt;/li&gt;
+&lt;li&gt;There is a clear and explicit contract between the platform and the items it supports clearly defining the constraints/standards they must conform to.&lt;/li&gt;
+&lt;li&gt;The platform is mostly self-service, requiring minimal centralised administration or configuration.  This avoids hand-offs and bottlenecks with centralised teams.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;other-types-of-standards&#34;&gt;Other Types of Standards&lt;/h2&gt;
+
+&lt;p&gt;Earlier on, I mentioned that we would later be looking at other types of standard beyond application standardisation.  If we think back to the definition earlier in the article we see that many types of standards could help enterprises including (but not limited to):&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Standards that help us treat things in a consistent way allowing us to build tooling, platforms (see above) and scale operationally (e.g. deployment, hosting, monitoring, etc.)&lt;/li&gt;
+&lt;li&gt;Standards that help maximise compatibility and interoperability between software components, business units, etc.&lt;/li&gt;
+&lt;li&gt;Standards to promote safety and to keep our assets secure&lt;/li&gt;
+&lt;li&gt;Standards to ensure a high level of quality to limit our risk exposure and additional expenses&lt;/li&gt;
+&lt;li&gt;Standards that promote consistent user experience to optimise usability and profit&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Typically these types of standards are defined across the organisation and can help drive emergent behaviours.  These types of standards explicitly define the small set of things that must be consistent (to support tooling, interoperability, etc.) and leave everything else to vary, allowing teams autonomy and freedom to innovate.&lt;/p&gt;
+
+&lt;h2 id=&#34;in-conclusion&#34;&gt;In Conclusion&lt;/h2&gt;
+
+&lt;p&gt;There are benefits to both standardising and diversifying/customising and rather than adopting a one size fits all approach, consider each application individually.  However, be wary of approaching standardisation as a means of cutting costs - you may end up simply pushing the costs elsewhere.  Where standardising is desired, you might wish to consider building platforms to support diversity and customisation whilst still reducing time to market by leveraging a focused, common platform.&lt;/p&gt;
+
+&lt;p&gt;Consider rolling out lightweight standards across the enterprise to promote consistency in the areas that consistency is important (e.g. application integration, security, user experience, etc.) helping to accelerate product development but be careful not to restrict teams&amp;rsquo; autonomy or ability to innovate.&lt;/p&gt;
+
+&lt;p&gt;Do any of the points in this article ring true with you?  Have you observed similar things in the companies you have worked for?  If so, please comment and share your experiences.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

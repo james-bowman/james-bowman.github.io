@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Collaboration on James Bowman</title>
+    <link>http://www.jamesbowman.me/tags/collaboration/index.xml</link>
+    <description>Recent content in Collaboration on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/tags/collaboration/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Remote pair programming</title>
+      <link>http://www.jamesbowman.me/post/remote-pair-programming/</link>
+      <pubDate>Wed, 09 Sep 2015 07:57:38 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/remote-pair-programming/</guid>
+      <description>
+
+&lt;p&gt;During a previous job I spent a lot of time working with delivery teams on other continents, helping them develop software. I was lucky enough to visit them on several occassions for a week at a time, and whilst I was there made lots of progress working with the on-site developers.  Unfortunatley I was not able to stay on-site for the duration of the project and so needed to find other ways of collaborating with the teams remotely from back in the UK.&lt;/p&gt;
+
+&lt;p&gt;We started with daily phone calls but we quickly found this to be an awful experience.  Over the phone we struggled to hear what the team members were saying, pick up body language or subtle nuances of the discussion or even pick out who was saying what.  We upgraded to video conferences for the meetings but found, whilst considerably better than the phone, this was still not effective.  We found that, rather ironically, when you are working remotely you need to work even more collaboratively.  For example, at the meetings we would discuss approaches for the day ahead but things would get lost or misinterpreted and following the meeting, people would then go away and diligently write lots of code that was taking us off in different directions.  Communicating over a phone or even a video conference is not nearly as effective as in person.&lt;/p&gt;
+
+&lt;p&gt;We quickly looked to augment the video conferences with more hands-on collaborative working and started investigating tools which might support remote pair programming.&lt;/p&gt;
+
+&lt;h3 id=&#34;tools&#34;&gt;Tools&lt;/h3&gt;
+
+&lt;p&gt;There are lots of tools available that can help support remote pairing and we tried a lot of them.  In my opinion, these tools can be divided into 6 distinct categories as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-video-conferencing-with-screen-share&#34;&gt;Video Conferencing with screen share&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#2-tmux&#34;&gt;TMUX&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#3-vnc&#34;&gt;VNC&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#4-cloud-hosted-tmux-or-vnc&#34;&gt;Cloud hosted TMUX or VNC&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#5-web-based-ides&#34;&gt;Web based IDEs&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#6-desktop-ides&#34;&gt;Desktop IDEs&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&#34;1-video-conferencing-with-screen-share&#34;&gt;1. Video Conferencing with screen share&lt;/h4&gt;
+
+&lt;p&gt;Whilst looking for pair programming tools, I came across lots of accounts of people claiming success using screen sharing tools like &lt;a href=&#34;http://www.skype.com&#34;&gt;Skype&lt;/a&gt;, &lt;a href=&#34;http://hangouts.google.com&#34;&gt;Google Hangouts&lt;/a&gt; and &lt;a href=&#34;http://www.join.me&#34;&gt;join.me&lt;/a&gt;.  This category of tools were originally designed as communication tools to support video conferencing and screen sharing.  The screen sharing within these tools is uni-directional and supports demonstrating or presenting something from the host&amp;rsquo;s machine.&lt;/p&gt;
+
+&lt;p&gt;In practice, we found that these tools were okay for demonstrating or presenting concepts, especially to larger groups of people, but did not work well for collaborative editing and pairing.  Only one person could edit or navigate at once and transferring control required switching to the other person&amp;rsquo;s machine and for them to pull changes made on the original machine.&lt;/p&gt;
+
+&lt;h4 id=&#34;2-tmux&#34;&gt;2. TMUX&lt;/h4&gt;
+
+&lt;p&gt;Terminal multiplexing can allow multiple users to simultaneously connect to the same terminal session.  Using TMUX, terminal based editors like vi and emacs can be used simultaneously by multiple clients allowing collaborative editing.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, the developers we were working with were used to Windows and graphical user interfaces.  They had experience with, and were productive on, GUI based IDEs specifically IntelliJ and Eclipse.  Using terminal based editors with TMUX represented a steep learning curve and short-term drop in productivity for the developers and would have been a hard sell.  Additionally, we also found challenges sharing sessions with TMUX across corporate firewalls.&lt;/p&gt;
+
+&lt;h4 id=&#34;3-vnc&#34;&gt;3. VNC&lt;/h4&gt;
+
+&lt;p&gt;Virtual Network Computing is a system for the sharing and remote control of desktops.  It transmits keyboard and mouse events to the host and the graphical screen updates back the other way.  VNC is platform independent and there are clients available for most platforms like &lt;a href=&#34;https://www.realvnc.com/&#34;&gt;RealVNC&lt;/a&gt; and &lt;a href=&#34;http://sourceforge.net/projects/cotvnc/&#34;&gt;Chicken of the VNC&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We were initially very excited by VNC because it promised everything we wanted - being able to share a desktop and allow multiple people to collaboratively edit the source code using graphical desktop based IDEs that people were already familiar with.  Unfortunately, in practice we found VNC was simply too slow.  The lag between pressing a key and the character appearing on screen was extremely noticeable and we kept running into problems where one user was typing at the same time as another user moving the cursor to a different part of the screen.  We tried taking it in turns to edit and navigate so only one person was actively editing at once and then explicitly transferring control to the other person when they wanted it.  Althought this helped allieviate some of the problems, the latency VNC was adding was still really irritating and ultimately slowing down our work. Furthermore, we found that the latency was not the same for both users - the person hosting the session experienced significantly lower latency than the guest.  The natural tendency was to attribute the apparent slowness to the person they were pairing with rather than the network latency which led to frustration and tension between pairs.  Like TMUX, we also found challenges using VNC across corporate firewalls.&lt;/p&gt;
+
+&lt;h4 id=&#34;4-cloud-hosted-tmux-or-vnc&#34;&gt;4. Cloud hosted TMUX or VNC&lt;/h4&gt;
+
+&lt;p&gt;This category builds on technologies like TMUX and VNC to share sessions but rather than using direct peer-to-peer connectivity between clients, clients all connect to a centralised host.  Examples of tools available to help support this model of working are &lt;a href=&#34;https://github.com/rondale-sc/remote_pair_chef&#34;&gt;Remote Pair Chef&lt;/a&gt; and &lt;a href=&#34;https://syme.herokuapp.com/&#34;&gt;Syme&lt;/a&gt;.  The advantages of this approach over simply using TMUX or VNC with one party hosting the session are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;It works much better with corporate firewalls as all clients connect to an external host exposed on the internet rather than trying to connect to a host within a corporate network.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;By locating the host in a suitable geographical location, all clients can experience similar latency and so tend to be more understanding when working together.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;The development environment is truly shared, rather than being someone&amp;rsquo;s personal workspace.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Unfortunately we found that although moving the host into the cloud helped with a lot of the challenges we were facing, TMUX with text based editors was still a hard sell for the developers and VNC was still too slow.  Also, this might have meant moving the source code into the cloud which was not an option available to us.&lt;/p&gt;
+
+&lt;h4 id=&#34;5-web-based-ides&#34;&gt;5. Web based IDEs&lt;/h4&gt;
+
+&lt;p&gt;This category of tool are rich web application based editors and IDEs accessed via a web browser.  Examples of this type of tool include &lt;a href=&#34;https://c9.io/&#34;&gt;Cloud9&lt;/a&gt;, &lt;a href=&#34;https://atom.io/&#34;&gt;Atom&lt;/a&gt; and &lt;a href=&#34;https://madeye.io/&#34;&gt;MadEye&lt;/a&gt;.  In a similar way to Google Docs, they support collaborative editing by multiple users simultaneously.&lt;/p&gt;
+
+&lt;p&gt;We found these IDEs really exciting.  They use HTTP and clients connect to a central host accessible via the internet so avoid the connectivity and firewall based challenges that impacted options in some of the other categories.  Some of these options combine voice communication with the collaborative editing and even execution environments for building and testing code directly from the IDE.  Unfortunately at the time we considered these options, most offerings were still relatively basic in terms of the features they offered so were a hard sell for developers coming from desktop IDEs.  Also, these options tend to rely on storing the source code in the cloud, so the editor can access it.  This was not an option available to us.&lt;/p&gt;
+
+&lt;h4 id=&#34;6-desktop-ides&#34;&gt;6. Desktop IDEs&lt;/h4&gt;
+
+&lt;p&gt;Like VNC, this category of tools promised everything we wanted, but unlike VNC, the tools in this category actually delivered!  We wanted to be able to share desktops and allow multiple people to collaboratively edit the source code using the graphical desktop based IDEs they were already familiar with.  Examples of tools in this category are &lt;a href=&#34;https://screenhero.com/&#34;&gt;ScreenHero&lt;/a&gt;, &lt;a href=&#34;https://floobits.com/&#34;&gt;Floobits&lt;/a&gt; and &lt;a href=&#34;https://www.nitrous.io/&#34;&gt;Nitrous.io&lt;/a&gt;.  All three of these examples require a client to be installed on everyone&amp;rsquo;s desktop but work in very different ways.  Nitrous.io provides a web based IDE but, with a paid plan, can also continuously synchronise changes with the local filesystem on the user&amp;rsquo;s desktop allowing them to edit files using an IDE of their choice.  The Floobits client integrates with a small set of desktop IDEs to synchronise changes with remote users in the IDE directly.  Floobits currently supports NeoVim, Emacs, IntelliJ and Sublime Text IDEs.  ScreenHero works in a similar way to VNC and transfers keyboard, mouse and screen events and voice between 2 or more users.&lt;/p&gt;
+
+&lt;p&gt;We found ScreenHero the easiest to use and the most flexible as it allowed multiple people to collaboratively interact with the same desktop and use any applications on that desktop not just IDEs.  ScreenHero could be used to collaboratively edit word documents or presentations or type in the terminal.  It seemed to adjust well to different bandwidth constraints and degraded relatively gracefully when resources were constrained.&lt;/p&gt;
+
+&lt;h3 id=&#34;general-experiences&#34;&gt;General experiences&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Email is awful&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;The person with higher network bandwidth should host the sharing session when using tools like Google hangouts, VNC, ScreenHero, etc.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Use combinations of tools for different purposes e.g. Video Conferencing for discussions, Video Conferencing and screen sharing for demoing especially to larger groups, Collaborative editing tools for pairing and use communication tools like chat &lt;em&gt;all the time&lt;/em&gt;.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Just because there is a big distance (and potentially time zones) between you doesn&amp;rsquo;t mean you should batch up communication.  The greater the distance the more important it is to have frequent short communications (chat applications work really well for this).&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

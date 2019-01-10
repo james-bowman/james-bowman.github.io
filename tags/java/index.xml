@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Java on James Bowman</title>
+    <link>http://www.jamesbowman.me/tags/java/index.xml</link>
+    <description>Recent content in Java on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/tags/java/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Extending Go programs with plugins</title>
+      <link>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</link>
+      <pubDate>Tue, 14 Jul 2015 07:47:59 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</guid>
+      <description>
+
+&lt;p&gt;I am really enjoying programming in Google&amp;rsquo;s &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt; language (Golang for search engines) but very occasionally come across things that aren&amp;rsquo;t really possible, or considered idiomatic, in Go.  Go is a very opinionated language which is a good thing as it keeps the language and tool chain very simple but also means if you need to do something unusual, it can sometimes feel like you are fighting the language.  One example of this is developing &lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;plugin&lt;/a&gt;s.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;Plugin&lt;/a&gt;s are a way of allowing third parties to extend or customise the behaviour of an existing piece of software.  This can be useful in a variety of contexts but, most recently, whilst I was working on a &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;chat bot&lt;/a&gt; I wanted to use plugins to allow people to easily extend the bot&amp;rsquo;s capabilities without having to change the existing &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;code&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-other-languages&#34;&gt;Support in other languages&lt;/h2&gt;
+
+&lt;p&gt;In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &amp;lsquo;plugged&amp;rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;Class clazz = Class.forName(fullyQualifiedClassName);				
+Object product = clazz.newInstance();
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Taking this one step further, Java has a set of conventions for creating and loading plugins called &lt;a href=&#34;https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html&#34;&gt;SPI (Service Provider Interface)&lt;/a&gt;.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-go&#34;&gt;Support in Go&lt;/h2&gt;
+
+&lt;p&gt;The Go compiler statically links libraries at compilation time which results in a single, fat, executable binary without external dependencies.  This massively simplifies deployment across environments but means that unfortunately it is not possible to load alternative implementations from dynamically linked libraries at runtime as with the Java SPI approach.&lt;/p&gt;
+
+&lt;p&gt;Given the language&amp;rsquo;s constraints around dynamic linking, supporting extensibility through plugins is something a lot of people have attempted in Go and a number of alternative approaches exist including but not limited to:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-out-of-process-communication&#34;&gt;Out of process communication&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#2-embedded-scripting&#34;&gt;Embedded scripting&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#3-compiled-in-extensions&#34;&gt;Compiled-in extensions&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Each of these approaches have their own strengths and weaknesses which I will discuss over the next few sections.&lt;/p&gt;
+
+&lt;h3 id=&#34;1-out-of-process-communication&#34;&gt;1. Out of process communication&lt;/h3&gt;
+
+&lt;p&gt;This is the approach taken by Hashicorp&amp;rsquo;s &lt;a href=&#34;https://www.packer.io/docs/extend/plugins.html&#34;&gt;Packer&lt;/a&gt; tool.  Essentially the &amp;lsquo;plugin&amp;rsquo; runs as a separate process and then the existing application communicates with the Plug-in via RPC (Remote Procedure Calls).  This means that the plugin does not need to be compiled into the existing application or statically linked but can be integrated dynamically at runtime.  Other examples of this approach are &lt;a href=&#34;http://npf.io/2015/05/pie/&#34;&gt;Pie&lt;/a&gt;, &lt;a href=&#34;https://github.com/dullgiulio/pingo&#34;&gt;Pingo&lt;/a&gt; and &lt;a href=&#34;https://github.com/drone/drone&#34;&gt;Drone&lt;/a&gt;.  Pie and Drone are interesting because instead of using RPC over TCP/IP the communication with the plugin process occurs via stdin and stdout.  Drone even takes the separation between application and plugin further by having the plugin process running within its own discrete Docker container.  Some of the pros and cons of this approach are as follows:&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Plug-ins are technology independent i.e. the plugin does not necessarily need to be written in the same language as the existing application (although they will need to share a common protocol for RPC).&lt;/li&gt;
+&lt;li&gt;Process isolation - the plugin and existing application are running in separate processes so if the plugin crashes, the impact on the existing application is limited.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Added complexity through additional runtime processes, binaries to be deployed and dependencies between them.&lt;/li&gt;
+&lt;li&gt;Relatively higher latency for out of process (RPC) communication&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;2-embedded-scripting&#34;&gt;2. Embedded scripting&lt;/h3&gt;
+
+&lt;p&gt;This approach uses an embedded scripting engine to execute scripts in process.  As the scripts are interpreted rather than compiled, their implementation can be extended and changed without modifying the existing application.  Some examples include &lt;a href=&#34;https://github.com/PuerkitoBio/agora&#34;&gt;Agora&lt;/a&gt;, &lt;a href=&#34;https://github.com/mattn/anko&#34;&gt;Anko&lt;/a&gt;, &lt;a href=&#34;https://github.com/robertkrimen/otto&#34;&gt;Otto&lt;/a&gt; and &lt;a href=&#34;https://github.com/Shopify/go-lua&#34;&gt;Go-Lua&lt;/a&gt;.  The syntax of both Agora and Anko bear a striking resemblence to Go whilst Otto and Go-Lua provide bindings for JavaScript and Lua script respectively.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Dynamic invocation at runtime.&lt;/li&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes.&lt;/li&gt;
+&lt;li&gt;Language bindings allow in process communication and data passing between existing application and scripts&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Usually require knowledge of another language e.g. Lua, JavaScript.&lt;/li&gt;
+&lt;li&gt;Possible reduced performance of interpreted code relative to compiled code.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;3-compiled-in-extensions&#34;&gt;3. Compiled-in extensions&lt;/h3&gt;
+
+&lt;p&gt;This is the approach that the Go language uses internally to support extensions e.g. &lt;a href=&#34;http://blog.golang.org/go-image-package#TOC_5.&#34;&gt;image formats&lt;/a&gt; and &lt;a href=&#34;http://golang.org/pkg/database/sql/&#34;&gt;database drivers&lt;/a&gt;.  Essentially, third parties develop their own plugins and compile the existing application themselves along with the source for their plugin without needing to modify the code for the existing application.  This was the approach I ended up adopting for Talbot and will discuss it in more depth in next sections.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes, extra deployment artifacts or dependencies.&lt;/li&gt;
+&lt;li&gt;Simple deployment - one fat binary deployable.&lt;/li&gt;
+&lt;li&gt;All code written in Go.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Statically linked - requires third parties to compile existing application themselves.&lt;/li&gt;
+&lt;li&gt;Behaviour cannot be changed/extended without re-compiling the whole application.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;compiled-in-extensions-in-more-depth&#34;&gt;Compiled-in extensions - In more depth&lt;/h2&gt;
+
+&lt;p&gt;I ended up choosing the compiled-in extensions approach for &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;my chat bot&lt;/a&gt;. The compiled-in approach means that third-parties can clone or fork the &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;repository&lt;/a&gt;, add their plugins/extensions into the appropriate package and then compile the application (with the plugins included).  This approach relies on a couple of Go language features which are worth considering in more detail.&lt;/p&gt;
+
+&lt;h3 id=&#34;the-init-function&#34;&gt;The init() function&lt;/h3&gt;
+
+&lt;p&gt;Whenever a package is imported, any functions called &lt;code&gt;init()&lt;/code&gt; in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;anonymous-underscore-imports&#34;&gt;Anonymous (underscore) imports&lt;/h3&gt;
+
+&lt;p&gt;The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, we need to import a package in order for the Go compiler to execute any &lt;code&gt;init()&lt;/code&gt; functions in that package, but often, we don&amp;rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h3&gt;
+
+&lt;p&gt;A simple plugin architecture using the compile-in extension approach could be established using 3 packages as follow:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;repo/
+repo/plugins/
+repo/plugins/third-party/
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;With this structure, the &lt;code&gt;repo/&lt;/code&gt; folder would be the &lt;code&gt;main&lt;/code&gt; package for the application.  The &lt;code&gt;repo/plugins/&lt;/code&gt; package would contain generic code to support third party plugins and the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package would be where the actual plugins would be placed by third parties.&lt;/p&gt;
+
+&lt;p&gt;In one of the files inside &lt;code&gt;repo/&lt;/code&gt; there should be an anonymous import for &lt;code&gt;repo/plugins/third-party&lt;/code&gt; as shown in the code snippet below:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;main&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code&gt;repo/plugins/&lt;/code&gt; package should contain a file containing the following code:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// define type for plugin - in this case it is just a function but it could be an interface&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; plugInFunc &lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// map to store registered plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; registry &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]plugInFunc
+
+&lt;span style=&#34;color: #008000&#34;&gt;// Register plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Register(name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, plugIn plugInFunc) {
+	registry[name] = plugIn
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The &lt;code&gt;registry&lt;/code&gt; is simply a map to store plugins registered using the exported &lt;code&gt;Register(string, plugInFunc)&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;p&gt;Finally new plugins should be placed within the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package and should be structured as in the following code snippet:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	plugins.Register(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;myPlugin&amp;quot;&lt;/span&gt;, myFunction)
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; myFunction(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
+	&lt;span style=&#34;color: #008000&#34;&gt;// plugin functionality&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

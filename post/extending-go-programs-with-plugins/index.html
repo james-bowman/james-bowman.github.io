@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:image" content="http://www.jamesbowman.me//post/Gopher-plugin.png"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Extending Go programs with plugins"/>
+<meta name="twitter:description" content="A look at some of the options for extending and customising Golang programs with plug-ins"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Extending Go programs with plugins &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/extending-go-programs-with-plugins/" />
+
+    
+    <meta property="og:description" content="A look at some of the options for extending and customising Golang programs with plug-ins" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="og:image" content="http://www.jamesbowman.me//post/Gopher-plugin.png" />
+    
+    <meta property="article:published_time" content="2015-07-14T07:47:59&#43;01:00" />
+
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="go" />
+    
+    <meta property="article:tag" content="golang" />
+    
+    <meta property="article:tag" content="java" />
+    
+    <meta property="article:tag" content="plugins" />
+    
+    <meta property="article:tag" content="RPC" />
+    
+    <meta property="article:tag" content="scripting" />
+    
+    
+
+    
+  
+    <title>Extending Go programs with plugins &middot; James Bowman</title>
+
+    
+    <meta name="description" content="A look at some of the options for extending and customising Golang programs with plug-ins" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/extending-go-programs-with-plugins/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Extending Go programs with plugins",
+    "name": "Extending Go programs with plugins",
+    "wordCount":  1344 ,
+    "timeRequired": "PT7M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/extending-go-programs-with-plugins/",
+    "datePublished": "2015-07-14T07:47Z",
+    "dateModified": "2015-07-14T07:47Z",
+    
+    "image": {
+        "@type": "ImageObject",
+        "url": "http://www.jamesbowman.me//post/Gopher-plugin.png",
+        "width": 3000,
+        "height": 1445
+    },
+    
+    
+    "keywords": "development, go, golang, java, plugins, RPC, scripting",
+    "description": "A look at some of the options for extending and customising Golang programs with plug-ins",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/extending-go-programs-with-plugins/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+  
+  <header class="main-header post-head" style="background-image: url(http://www.jamesbowman.me//post/Gopher-plugin.png)">
+  
+  <nav class="main-nav overlay clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Extending Go programs with plugins</h1>
+        <small>A look at some of the options for extending and customising Golang programs with plug-ins</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2015-07-14T07:47:59&#43;01:00">
+            Jul 14, 2015
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/go/">#go</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/golang/">#golang</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/java/">#java</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/plugins/">#plugins</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/rpc/">#RPC</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/scripting/">#scripting</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>I am really enjoying programming in Google&rsquo;s <a href="https://golang.org/">Go</a> language (Golang for search engines) but very occasionally come across things that aren&rsquo;t really possible, or considered idiomatic, in Go.  Go is a very opinionated language which is a good thing as it keeps the language and tool chain very simple but also means if you need to do something unusual, it can sometimes feel like you are fighting the language.  One example of this is developing <a href="https://en.wikipedia.org/wiki/Plug-in_(computing)">plugin</a>s.</p>
+
+<p><a href="https://en.wikipedia.org/wiki/Plug-in_(computing)">Plugin</a>s are a way of allowing third parties to extend or customise the behaviour of an existing piece of software.  This can be useful in a variety of contexts but, most recently, whilst I was working on a <a href="https://github.com/james-bowman/talbot">chat bot</a> I wanted to use plugins to allow people to easily extend the bot&rsquo;s capabilities without having to change the existing <a href="https://github.com/james-bowman/talbot">code</a>.</p>
+
+<h2 id="support-in-other-languages">Support in other languages</h2>
+
+<p>In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &lsquo;plugged&rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span>Class clazz = Class.forName(fullyQualifiedClassName);				
+Object product = clazz.newInstance();
+</pre></div>
+
+<p>Taking this one step further, Java has a set of conventions for creating and loading plugins called <a href="https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html">SPI (Service Provider Interface)</a>.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.</p>
+
+<h2 id="support-in-go">Support in Go</h2>
+
+<p>The Go compiler statically links libraries at compilation time which results in a single, fat, executable binary without external dependencies.  This massively simplifies deployment across environments but means that unfortunately it is not possible to load alternative implementations from dynamically linked libraries at runtime as with the Java SPI approach.</p>
+
+<p>Given the language&rsquo;s constraints around dynamic linking, supporting extensibility through plugins is something a lot of people have attempted in Go and a number of alternative approaches exist including but not limited to:</p>
+
+<ol>
+<li><a href="#1-out-of-process-communication">Out of process communication</a></li>
+<li><a href="#2-embedded-scripting">Embedded scripting</a></li>
+<li><a href="#3-compiled-in-extensions">Compiled-in extensions</a></li>
+</ol>
+
+<p>Each of these approaches have their own strengths and weaknesses which I will discuss over the next few sections.</p>
+
+<h3 id="1-out-of-process-communication">1. Out of process communication</h3>
+
+<p>This is the approach taken by Hashicorp&rsquo;s <a href="https://www.packer.io/docs/extend/plugins.html">Packer</a> tool.  Essentially the &lsquo;plugin&rsquo; runs as a separate process and then the existing application communicates with the Plug-in via RPC (Remote Procedure Calls).  This means that the plugin does not need to be compiled into the existing application or statically linked but can be integrated dynamically at runtime.  Other examples of this approach are <a href="http://npf.io/2015/05/pie/">Pie</a>, <a href="https://github.com/dullgiulio/pingo">Pingo</a> and <a href="https://github.com/drone/drone">Drone</a>.  Pie and Drone are interesting because instead of using RPC over TCP/IP the communication with the plugin process occurs via stdin and stdout.  Drone even takes the separation between application and plugin further by having the plugin process running within its own discrete Docker container.  Some of the pros and cons of this approach are as follows:</p>
+
+<p>Pros:</p>
+
+<ul>
+<li>Plug-ins are technology independent i.e. the plugin does not necessarily need to be written in the same language as the existing application (although they will need to share a common protocol for RPC).</li>
+<li>Process isolation - the plugin and existing application are running in separate processes so if the plugin crashes, the impact on the existing application is limited.</li>
+</ul>
+
+<p>Cons:</p>
+
+<ul>
+<li>Added complexity through additional runtime processes, binaries to be deployed and dependencies between them.</li>
+<li>Relatively higher latency for out of process (RPC) communication</li>
+</ul>
+
+<h3 id="2-embedded-scripting">2. Embedded scripting</h3>
+
+<p>This approach uses an embedded scripting engine to execute scripts in process.  As the scripts are interpreted rather than compiled, their implementation can be extended and changed without modifying the existing application.  Some examples include <a href="https://github.com/PuerkitoBio/agora">Agora</a>, <a href="https://github.com/mattn/anko">Anko</a>, <a href="https://github.com/robertkrimen/otto">Otto</a> and <a href="https://github.com/Shopify/go-lua">Go-Lua</a>.  The syntax of both Agora and Anko bear a striking resemblence to Go whilst Otto and Go-Lua provide bindings for JavaScript and Lua script respectively.</p>
+
+<p>Pros:</p>
+
+<ul>
+<li>Dynamic invocation at runtime.</li>
+<li>Relatively simple - no additional runtime processes.</li>
+<li>Language bindings allow in process communication and data passing between existing application and scripts</li>
+</ul>
+
+<p>Cons:</p>
+
+<ul>
+<li>Usually require knowledge of another language e.g. Lua, JavaScript.</li>
+<li>Possible reduced performance of interpreted code relative to compiled code.</li>
+</ul>
+
+<h3 id="3-compiled-in-extensions">3. Compiled-in extensions</h3>
+
+<p>This is the approach that the Go language uses internally to support extensions e.g. <a href="http://blog.golang.org/go-image-package#TOC_5.">image formats</a> and <a href="http://golang.org/pkg/database/sql/">database drivers</a>.  Essentially, third parties develop their own plugins and compile the existing application themselves along with the source for their plugin without needing to modify the code for the existing application.  This was the approach I ended up adopting for Talbot and will discuss it in more depth in next sections.</p>
+
+<p>Pros:</p>
+
+<ul>
+<li>Relatively simple - no additional runtime processes, extra deployment artifacts or dependencies.</li>
+<li>Simple deployment - one fat binary deployable.</li>
+<li>All code written in Go.</li>
+</ul>
+
+<p>Cons:</p>
+
+<ul>
+<li>Statically linked - requires third parties to compile existing application themselves.</li>
+<li>Behaviour cannot be changed/extended without re-compiling the whole application.</li>
+</ul>
+
+<h2 id="compiled-in-extensions-in-more-depth">Compiled-in extensions - In more depth</h2>
+
+<p>I ended up choosing the compiled-in extensions approach for <a href="https://github.com/james-bowman/talbot">my chat bot</a>. The compiled-in approach means that third-parties can clone or fork the <a href="https://github.com/james-bowman/talbot">repository</a>, add their plugins/extensions into the appropriate package and then compile the application (with the plugins included).  This approach relies on a couple of Go language features which are worth considering in more detail.</p>
+
+<h3 id="the-init-function">The init() function</h3>
+
+<p>Whenever a package is imported, any functions called <code>init()</code> in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;mypackage&quot;</span>
+
+<span style="color: #0000ff">func</span> init() {
+	
+}
+</pre></div>
+
+<h3 id="anonymous-underscore-imports">Anonymous (underscore) imports</h3>
+
+<p>The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.</p>
+
+<p>Unfortunately, we need to import a package in order for the Go compiler to execute any <code>init()</code> functions in that package, but often, we don&rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">import</span> _ <span style="color: #a31515">&quot;mypackage&quot;</span>
+</pre></div>
+
+<h3 id="putting-it-all-together">Putting it all together</h3>
+
+<p>A simple plugin architecture using the compile-in extension approach could be established using 3 packages as follow:</p>
+
+<pre><code>repo/
+repo/plugins/
+repo/plugins/third-party/
+</code></pre>
+
+<p>With this structure, the <code>repo/</code> folder would be the <code>main</code> package for the application.  The <code>repo/plugins/</code> package would contain generic code to support third party plugins and the <code>repo/plugins/third-party/</code> package would be where the actual plugins would be placed by third parties.</p>
+
+<p>In one of the files inside <code>repo/</code> there should be an anonymous import for <code>repo/plugins/third-party</code> as shown in the code snippet below:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;main&quot;</span>
+
+<span style="color: #0000ff">import</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
+<span style="color: #0000ff">import</span> _ <span style="color: #a31515">&quot;repo/plugins/third-party&quot;</span>
+</pre></div>
+
+<p>The <code>repo/plugins/</code> package should contain a file containing the following code:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
+
+<span style="color: #008000">// define type for plugin - in this case it is just a function but it could be an interface</span>
+<span style="color: #0000ff">type</span> plugInFunc <span style="color: #0000ff">func</span>(param <span style="color: #2b91af">int</span>) <span style="color: #2b91af">string</span>
+
+<span style="color: #008000">// map to store registered plugins</span>
+<span style="color: #0000ff">var</span> registry <span style="color: #0000ff">map</span>[<span style="color: #2b91af">string</span>]plugInFunc
+
+<span style="color: #008000">// Register plugins</span>
+<span style="color: #0000ff">func</span> Register(name <span style="color: #2b91af">string</span>, plugIn plugInFunc) {
+	registry[name] = plugIn
+}
+</pre></div>
+
+<p>This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The <code>registry</code> is simply a map to store plugins registered using the exported <code>Register(string, plugInFunc)</code> function.</p>
+
+<p>Finally new plugins should be placed within the <code>repo/plugins/third-party/</code> package and should be structured as in the following code snippet:</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;repo/plugins/third-party&quot;</span>
+
+<span style="color: #0000ff">import</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
+
+<span style="color: #0000ff">func</span> init() {
+	plugins.Register(<span style="color: #a31515">&quot;myPlugin&quot;</span>, myFunction)
+}
+
+<span style="color: #0000ff">func</span> myFunction(param <span style="color: #2b91af">int</span>) <span style="color: #2b91af">string</span> {
+	<span style="color: #008000">// plugin functionality</span>
+}
+</pre></div>
+
+
+       
+    <div class="index-content post">
+        <div class="post-meta">
+            <sub>
+        Cover photo: <a href="https://github.com/ashleymcnamara/gophers/blob/master/GOPHER_AVATARS.jpg">&#39;GOPHER_AVATARS&#39; with added plugs</a> by Ashley McNamara, available under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International license</a>
+            </sub>
+        </div>
+    </div>
+    
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Extending%20Go%20programs%20with%20plugins&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fextending-go-programs-with-plugins%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fextending-go-programs-with-plugins%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fextending-go-programs-with-plugins%2f&amp;description=Extending%20Go%20programs%20with%20plugins"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fextending-go-programs-with-plugins%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/extending-go-programs-with-plugins\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

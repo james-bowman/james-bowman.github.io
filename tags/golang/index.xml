@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Golang on James Bowman</title>
+    <link>http://www.jamesbowman.me/tags/golang/index.xml</link>
+    <description>Recent content in Golang on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/tags/golang/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Extending Go programs with plugins</title>
+      <link>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</link>
+      <pubDate>Tue, 14 Jul 2015 07:47:59 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</guid>
+      <description>
+
+&lt;p&gt;I am really enjoying programming in Google&amp;rsquo;s &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt; language (Golang for search engines) but very occasionally come across things that aren&amp;rsquo;t really possible, or considered idiomatic, in Go.  Go is a very opinionated language which is a good thing as it keeps the language and tool chain very simple but also means if you need to do something unusual, it can sometimes feel like you are fighting the language.  One example of this is developing &lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;plugin&lt;/a&gt;s.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;Plugin&lt;/a&gt;s are a way of allowing third parties to extend or customise the behaviour of an existing piece of software.  This can be useful in a variety of contexts but, most recently, whilst I was working on a &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;chat bot&lt;/a&gt; I wanted to use plugins to allow people to easily extend the bot&amp;rsquo;s capabilities without having to change the existing &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;code&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-other-languages&#34;&gt;Support in other languages&lt;/h2&gt;
+
+&lt;p&gt;In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &amp;lsquo;plugged&amp;rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;Class clazz = Class.forName(fullyQualifiedClassName);				
+Object product = clazz.newInstance();
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Taking this one step further, Java has a set of conventions for creating and loading plugins called &lt;a href=&#34;https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html&#34;&gt;SPI (Service Provider Interface)&lt;/a&gt;.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-go&#34;&gt;Support in Go&lt;/h2&gt;
+
+&lt;p&gt;The Go compiler statically links libraries at compilation time which results in a single, fat, executable binary without external dependencies.  This massively simplifies deployment across environments but means that unfortunately it is not possible to load alternative implementations from dynamically linked libraries at runtime as with the Java SPI approach.&lt;/p&gt;
+
+&lt;p&gt;Given the language&amp;rsquo;s constraints around dynamic linking, supporting extensibility through plugins is something a lot of people have attempted in Go and a number of alternative approaches exist including but not limited to:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-out-of-process-communication&#34;&gt;Out of process communication&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#2-embedded-scripting&#34;&gt;Embedded scripting&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#3-compiled-in-extensions&#34;&gt;Compiled-in extensions&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Each of these approaches have their own strengths and weaknesses which I will discuss over the next few sections.&lt;/p&gt;
+
+&lt;h3 id=&#34;1-out-of-process-communication&#34;&gt;1. Out of process communication&lt;/h3&gt;
+
+&lt;p&gt;This is the approach taken by Hashicorp&amp;rsquo;s &lt;a href=&#34;https://www.packer.io/docs/extend/plugins.html&#34;&gt;Packer&lt;/a&gt; tool.  Essentially the &amp;lsquo;plugin&amp;rsquo; runs as a separate process and then the existing application communicates with the Plug-in via RPC (Remote Procedure Calls).  This means that the plugin does not need to be compiled into the existing application or statically linked but can be integrated dynamically at runtime.  Other examples of this approach are &lt;a href=&#34;http://npf.io/2015/05/pie/&#34;&gt;Pie&lt;/a&gt;, &lt;a href=&#34;https://github.com/dullgiulio/pingo&#34;&gt;Pingo&lt;/a&gt; and &lt;a href=&#34;https://github.com/drone/drone&#34;&gt;Drone&lt;/a&gt;.  Pie and Drone are interesting because instead of using RPC over TCP/IP the communication with the plugin process occurs via stdin and stdout.  Drone even takes the separation between application and plugin further by having the plugin process running within its own discrete Docker container.  Some of the pros and cons of this approach are as follows:&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Plug-ins are technology independent i.e. the plugin does not necessarily need to be written in the same language as the existing application (although they will need to share a common protocol for RPC).&lt;/li&gt;
+&lt;li&gt;Process isolation - the plugin and existing application are running in separate processes so if the plugin crashes, the impact on the existing application is limited.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Added complexity through additional runtime processes, binaries to be deployed and dependencies between them.&lt;/li&gt;
+&lt;li&gt;Relatively higher latency for out of process (RPC) communication&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;2-embedded-scripting&#34;&gt;2. Embedded scripting&lt;/h3&gt;
+
+&lt;p&gt;This approach uses an embedded scripting engine to execute scripts in process.  As the scripts are interpreted rather than compiled, their implementation can be extended and changed without modifying the existing application.  Some examples include &lt;a href=&#34;https://github.com/PuerkitoBio/agora&#34;&gt;Agora&lt;/a&gt;, &lt;a href=&#34;https://github.com/mattn/anko&#34;&gt;Anko&lt;/a&gt;, &lt;a href=&#34;https://github.com/robertkrimen/otto&#34;&gt;Otto&lt;/a&gt; and &lt;a href=&#34;https://github.com/Shopify/go-lua&#34;&gt;Go-Lua&lt;/a&gt;.  The syntax of both Agora and Anko bear a striking resemblence to Go whilst Otto and Go-Lua provide bindings for JavaScript and Lua script respectively.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Dynamic invocation at runtime.&lt;/li&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes.&lt;/li&gt;
+&lt;li&gt;Language bindings allow in process communication and data passing between existing application and scripts&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Usually require knowledge of another language e.g. Lua, JavaScript.&lt;/li&gt;
+&lt;li&gt;Possible reduced performance of interpreted code relative to compiled code.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;3-compiled-in-extensions&#34;&gt;3. Compiled-in extensions&lt;/h3&gt;
+
+&lt;p&gt;This is the approach that the Go language uses internally to support extensions e.g. &lt;a href=&#34;http://blog.golang.org/go-image-package#TOC_5.&#34;&gt;image formats&lt;/a&gt; and &lt;a href=&#34;http://golang.org/pkg/database/sql/&#34;&gt;database drivers&lt;/a&gt;.  Essentially, third parties develop their own plugins and compile the existing application themselves along with the source for their plugin without needing to modify the code for the existing application.  This was the approach I ended up adopting for Talbot and will discuss it in more depth in next sections.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes, extra deployment artifacts or dependencies.&lt;/li&gt;
+&lt;li&gt;Simple deployment - one fat binary deployable.&lt;/li&gt;
+&lt;li&gt;All code written in Go.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Statically linked - requires third parties to compile existing application themselves.&lt;/li&gt;
+&lt;li&gt;Behaviour cannot be changed/extended without re-compiling the whole application.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;compiled-in-extensions-in-more-depth&#34;&gt;Compiled-in extensions - In more depth&lt;/h2&gt;
+
+&lt;p&gt;I ended up choosing the compiled-in extensions approach for &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;my chat bot&lt;/a&gt;. The compiled-in approach means that third-parties can clone or fork the &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;repository&lt;/a&gt;, add their plugins/extensions into the appropriate package and then compile the application (with the plugins included).  This approach relies on a couple of Go language features which are worth considering in more detail.&lt;/p&gt;
+
+&lt;h3 id=&#34;the-init-function&#34;&gt;The init() function&lt;/h3&gt;
+
+&lt;p&gt;Whenever a package is imported, any functions called &lt;code&gt;init()&lt;/code&gt; in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;anonymous-underscore-imports&#34;&gt;Anonymous (underscore) imports&lt;/h3&gt;
+
+&lt;p&gt;The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, we need to import a package in order for the Go compiler to execute any &lt;code&gt;init()&lt;/code&gt; functions in that package, but often, we don&amp;rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h3&gt;
+
+&lt;p&gt;A simple plugin architecture using the compile-in extension approach could be established using 3 packages as follow:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;repo/
+repo/plugins/
+repo/plugins/third-party/
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;With this structure, the &lt;code&gt;repo/&lt;/code&gt; folder would be the &lt;code&gt;main&lt;/code&gt; package for the application.  The &lt;code&gt;repo/plugins/&lt;/code&gt; package would contain generic code to support third party plugins and the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package would be where the actual plugins would be placed by third parties.&lt;/p&gt;
+
+&lt;p&gt;In one of the files inside &lt;code&gt;repo/&lt;/code&gt; there should be an anonymous import for &lt;code&gt;repo/plugins/third-party&lt;/code&gt; as shown in the code snippet below:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;main&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code&gt;repo/plugins/&lt;/code&gt; package should contain a file containing the following code:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// define type for plugin - in this case it is just a function but it could be an interface&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; plugInFunc &lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// map to store registered plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; registry &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]plugInFunc
+
+&lt;span style=&#34;color: #008000&#34;&gt;// Register plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Register(name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, plugIn plugInFunc) {
+	registry[name] = plugIn
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The &lt;code&gt;registry&lt;/code&gt; is simply a map to store plugins registered using the exported &lt;code&gt;Register(string, plugInFunc)&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;p&gt;Finally new plugins should be placed within the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package and should be structured as in the following code snippet:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	plugins.Register(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;myPlugin&amp;quot;&lt;/span&gt;, myFunction)
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; myFunction(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
+	&lt;span style=&#34;color: #008000&#34;&gt;// plugin functionality&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Continuous delivery pipeline for blogging with Hugo and Wercker</title>
+      <link>http://www.jamesbowman.me/post/cd-pipeline-for-blogging/</link>
+      <pubDate>Mon, 06 Jul 2015 19:13:19 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/cd-pipeline-for-blogging/</guid>
+      <description>
+
+&lt;p&gt;This is the start of my new blog.  It is something I have been meaning to do for a long time but somehow never quite got around to.  Part of the problem for me was choosing a blogging platform and tool chain - I was overwhelmed by the number of different options available.  I know lots of people use platforms like &lt;a href=&#34;https://wordpress.com/&#34;&gt;Wordpress&lt;/a&gt; but I always liked the idea of static generators like &lt;a href=&#34;http://jekyllrb.com/&#34;&gt;Jekyll&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;I recently stumbled across &lt;a href=&#34;http://gohugo.io&#34;&gt;Hugo&lt;/a&gt;.  Hugo is a static generator like &lt;a href=&#34;http://jekyllrb.com/&#34;&gt;Jekyll&lt;/a&gt; where content (usually written in &lt;a href=&#34;https://en.wikipedia.org/wiki/Markdown&#34;&gt;markdown&lt;/a&gt;) is rendered offline as static HTML and then published to a hosting platform.  A benefit of this approach over using a platform like &lt;a href=&#34;https://wordpress.com/&#34;&gt;Wordpress&lt;/a&gt; is that the generated HTML can be hosted anywhere.  &lt;a href=&#34;http://gohugo.io&#34;&gt;Hugo&lt;/a&gt; interested me in particular because it is written in &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt;, which I am familiar with, and is reported to be extremely fast (important when waiting for content updates to render).  The steps I originally followed to setup my blog were inspired by &lt;a href=&#34;http://gohugo.io/tutorials/automated-deployments/&#34;&gt;the tutorial on the Hugo site&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;github-and-github-pages&#34;&gt;GitHub and GitHub Pages&lt;/h2&gt;
+
+&lt;p&gt;I decided to use &lt;a href=&#34;https://pages.github.com/&#34;&gt;GitHub Pages&lt;/a&gt; to host the site since they offer a free personal site for each GitHub account and I intended to use &lt;a href=&#34;http://github.com&#34;&gt;GitHub&lt;/a&gt; for the source content anyway so using the same service for both made sense.&lt;/p&gt;
+
+&lt;p&gt;Although I am using GitHub to store both my source content and generated HTML, I wanted to keep them separate and so setup 2 new, empty repositories on GitHub:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;blog&lt;/code&gt; - to store the source content.  The name of this repository is not important but for the remainder of this post, I will refer to it as &amp;lsquo;blog&amp;rsquo;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;&amp;lt;GitHub username&amp;gt;.github.io&lt;/code&gt; - to host the generated static HTML.  The name of this repository must exactly match the pattern shown (this is where Github Pages serves the site from).&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;I use Git on a regular basis to version code I write and am used to using the command line client.  Whilst the steps I describe in the rest of this post assume the use of a command line client, a graphical client could be used to carry out the same operations if preferred.  Either command line or graphical client can be downloaded from the following URL:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://git-scm.com/downloads&#34;&gt;https://git-scm.com/downloads&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;hugo&#34;&gt;Hugo&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://gohugo.io&#34;&gt;Hugo&lt;/a&gt; is an open source static site generator developed in &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt;.  It is designed to be executed from the command line and it can be downloaded and installed locally.  It can be downloaded from the following URL:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spf13/hugo/releases&#34;&gt;https://github.com/spf13/hugo/releases&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Once installed, it can be executed on the command line to setup an initial workspace for all source site content.  The following command will create a subdirectory called &lt;code&gt;blog&lt;/code&gt; within the current directory containing the initial workspace and directory structure for your Hugo site.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hugo new site blog
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Once the workspace has been created we will need to add it to our GitHub repository.  First, so that Git does not try to version control the generated HTML as part of this repository (we want to store that in our second repository) I created a &lt;code&gt;.gitignore&lt;/code&gt; file inside the &lt;code&gt;blog&lt;/code&gt; directory containing &lt;code&gt;/public&lt;/code&gt; (/public is the output directory to which our generated HTML will be written).  Then type the following from within the &lt;code&gt;blog&lt;/code&gt; directory to add the workspace to GitHub, substituting your GitHub username for &lt;code&gt;&amp;lt;Github username&amp;gt;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git init
+git add -A .
+git commit -m &amp;quot;initial commit&amp;quot;
+git remote add origin https://github.com/&amp;lt;Github username&amp;gt;/blog.git
+git push -u origin master
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Hugo uses interchangeable &amp;lsquo;themes&amp;rsquo; to style generated websites.  There are a bunch of pre-developed themes to choose from on &lt;a href=&#34;https://github.com/spf13/hugoThemes/&#34;&gt;GitHub&lt;/a&gt;.  To add one of these themes simply clone it into a &lt;code&gt;theme&lt;/code&gt; folder under the content workspace as follows:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;mkdir themes
+cd themes
+git clone URL_TO_THEME 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Finally edit the &lt;code&gt;config.toml&lt;/code&gt; file in the root of the content workspace and update the title and baseurl attributes to the title of your site and &lt;code&gt;http://&amp;lt;Github username&amp;gt;.github.io&lt;/code&gt; respectively.&lt;/p&gt;
+
+&lt;h3 id=&#34;creating-content&#34;&gt;Creating Content&lt;/h3&gt;
+
+&lt;p&gt;Content in Hugo is stored under the &lt;code&gt;/content&lt;/code&gt; folder in the workspace.  To add new content, use the &lt;code&gt;hugo new&lt;/code&gt; command to create the file as follows:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;mkdir content/post
+hugo new post/hello.md
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This creates a new content &lt;a href=&#34;https://en.wikipedia.org/wiki/Markdown&#34;&gt;markdown&lt;/a&gt; file pre-populated with hugo meta-data in a header.&lt;/p&gt;
+
+&lt;p&gt;Edit the markdown file to add markdown text below the +++ and when finished, change the &lt;code&gt;draft&lt;/code&gt; attribute in the header to &lt;code&gt;false&lt;/code&gt;.  Now commit and push changes up to Github.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git add .
+git commit
+git push origin master
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;generating-the-html&#34;&gt;Generating the HTML&lt;/h3&gt;
+
+&lt;p&gt;To generate the site from within the content workspace simply type the following command.  This will render the markdown content files as static HTML and place them in the &lt;code&gt;/public&lt;/code&gt; output folder.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hugo --theme=&amp;lt;theme folder name&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The specified theme folder name must exactly match the local folder name of the cloned theme e.g. if you are using hyde, the theme will have been cloned into the folder &lt;code&gt;themes/hyde&lt;/code&gt; so the following command should be used:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;hugo --theme=hyde
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;publishing-to-github-pages&#34;&gt;Publishing to GitHub Pages&lt;/h3&gt;
+
+&lt;p&gt;Publishing to &lt;a href=&#34;https://pages.github.com/&#34;&gt;GitHub Pages&lt;/a&gt; is as simple as copying the /public directory (containing the generated website) and pushing the contents to the remote &lt;code&gt;&amp;lt;github username&amp;gt;.github.io&lt;/code&gt; repository.  GitHub Pages will then serve the HTML from that repository at the following URL: &lt;code&gt;http://&amp;lt;GitHub username&amp;gt;.github.io/&lt;/code&gt;.  As an alternative to copying the contents of the /public directory, one could simply create the /public directory as a symbolic link/shortcut to the local copy of the &lt;code&gt;&amp;lt;github username&amp;gt;.github.io&lt;/code&gt; repository.&lt;/p&gt;
+
+&lt;p&gt;Here is the sequence of commands required to copy the /public directory and push to GitHub Pages:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;mkdir ../output
+cd ../output
+git init
+git remote add origin git@github.com:&amp;lt;Github username&amp;gt;/&amp;lt;Github username&amp;gt;.github.io.git
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Then to push each set of changes:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;cd ../output
+cp -R ../blog/public/* . 
+git add .
+git commit -m &amp;quot;generated content&amp;quot;
+git push origin master
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We have now &lt;a href=&#34;#creating-content&#34;&gt;created content&lt;/a&gt;, &lt;a href=&#34;#generating-the-html&#34;&gt;rendered it as HTML&lt;/a&gt; and &lt;a href=&#34;#publishing-to-github-pages&#34;&gt;published it&lt;/a&gt; to a live website.  This represents all of the component parts of a nice publishing workflow - lets automate it!&lt;/p&gt;
+
+&lt;h2 id=&#34;automating-the-process-with-wercker&#34;&gt;Automating the process with Wercker&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://wercker.com/&#34;&gt;Wercker&lt;/a&gt; is a hosted &lt;a href=&#34;http://www.thoughtworks.com/continuous-integration&#34;&gt;Continuous Integration&lt;/a&gt;/&lt;a href=&#34;https://en.wikipedia.org/wiki/Continuous_delivery&#34;&gt;Continuous Delivery&lt;/a&gt; service that has a growing community developing reusable build and deployment pipelines.  It has existing Hugo and GitHub Pages integrations built by the Werker community making it ideal for my needs.&lt;/p&gt;
+
+&lt;p&gt;Wercker is free to sign up for an account and you can sign up with your GitHub account.  Once registered, ensure that your account profile is connected to your GitHub account.  This can be achieved by clicking on your icon in the top right hand corner of the screen and then selecting &lt;code&gt;settings&lt;/code&gt;.  Then select &lt;code&gt;Git connections&lt;/code&gt; to connect your GitHub account.&lt;/p&gt;
+
+&lt;p&gt;Now we can setup our pipeline by creating a new application.  Select &lt;code&gt;Create&lt;/code&gt; and select &lt;code&gt;Application&lt;/code&gt;.  Work through the process of setting up a new application selecting GitHub as the Git provider, and choosing &amp;lsquo;blog&amp;rsquo; as the repository.  Select yourself as the owner and configure access so that &lt;code&gt;wercker will checkout the code without using an SSH key&lt;/code&gt;.  Finally uncheck the &lt;code&gt;Docker enabled&lt;/code&gt; checkbox and click next step.  You can finally choose whether to make your pipeline public or private.  This is a personal choice and has no impact on how things work.  Werker will now start building your code.&lt;/p&gt;
+
+&lt;p&gt;Now we need to create a &lt;code&gt;wercker.yml&lt;/code&gt; file in the root of the content workspace (/blog folder).  This file should contain the following:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;box: wercker/default
+build:
+    steps:
+        - arjen/hugo-build:
+        version: 0.14
+        theme: &amp;lt;theme folder name&amp;gt;
+        config: config.toml
+deploy:
+    steps:
+        - lukevivier/gh-pages@0.2.1:
+        token: $GIT_TOKEN
+        domain: &amp;lt;GitHub username&amp;gt;.github.io
+        basedir: public
+        repo: &amp;lt;GitHub username&amp;gt;/&amp;lt;GitHub username&amp;gt;.github.io
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Be careful to replace any text within &amp;lt;&amp;gt; with your actual values e.g. &lt;code&gt;&amp;lt;GitHub username&amp;gt;&lt;/code&gt; should be replaced with your specific GitHub username.  Once finished, commit and push the wercker.yml file to GitHub:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git add wercker.yml
+git commit -m &amp;quot;Add wercker.yml&amp;quot;
+git push origin master
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You may have noticed that our wercker.yml file contained a variable: &lt;code&gt;$GIT_TOKEN&lt;/code&gt;.  This variable allows us to specify our GitHub access credentials for deploying to GitHub Pages outside of the pipeline and therefore keep them secret.  We will now set the value for this variable but first need to generate a GitHub access token.  Instructions for doing this can be found &lt;a href=&#34;https://help.github.com/articles/creating-an-access-token-for-command-line-use/&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To set the value for the &lt;code&gt;$GIT_TOKEN&lt;/code&gt; variable, select the &lt;code&gt;settings&lt;/code&gt; tab within wercker.  Now select &lt;code&gt;pipeline&lt;/code&gt; and &lt;code&gt;Add new variable&lt;/code&gt;.  Enter &lt;code&gt;$GIT_TOKEN&lt;/code&gt; as the &lt;code&gt;Environment Variable&lt;/code&gt; and paste your generated GitHub token into the &lt;code&gt;value&lt;/code&gt; field.  Check the &lt;code&gt;protected&lt;/code&gt; check box so that the token is kept hidden and not displayed.  Finally click the &lt;code&gt;save&lt;/code&gt; button to complete the setup.&lt;/p&gt;
+
+&lt;p&gt;Now everytime, you commit and push source content changes to the &lt;code&gt;blog&lt;/code&gt; repository, Wercker will automatically render the updated content as HTML and publish it to GitHub Pages.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

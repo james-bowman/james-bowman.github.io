@@ -1,0 +1,2024 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Development on James Bowman</title>
+    <link>http://www.jamesbowman.me/categories/development/index.xml</link>
+    <description>Recent content in Development on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/categories/development/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Optimising Go code with Assembler</title>
+      <link>http://www.jamesbowman.me/post/optimising-go-code-with-assembler/</link>
+      <pubDate>Mon, 07 Jan 2019 07:45:00 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/optimising-go-code-with-assembler/</guid>
+      <description>
+
+&lt;p&gt;In this blog post I will explore the steps to optimise a sparse vector dot product operation.  We will start with a basic implementation in Go, convert it to assembler and then iteratively optimise it, measuring the effect of each change to check our progress.  All the code from the post is available on &lt;a href=&#34;https://github.com/james-bowman/algos&#34;&gt;Github&lt;/a&gt; and also forms part of the &lt;a href=&#34;https://github.com/james-bowman/sparse&#34;&gt;Golang Sparse matrix package&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;A &lt;a href=&#34;https://en.wikipedia.org/wiki/Dot_product&#34;&gt;vector dot product&lt;/a&gt; is a very common kernel, or basic building block, for many computations used within scientific computing and machine learning e.g. matrix multiplication, cosine similarity, etc.  The dot product simply multiplies together the respective elements of two vectors and then adds all the results together to give a scalar output.&lt;/p&gt;
+
+&lt;p&gt;Here is an example of how this operation could look in code.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) {
+  &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i, v := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; x {
+    dot += v * y[i]
+  }
+  &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;1-sparse-vectors&#34;&gt;1. Sparse Vectors&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://www.quora.com/In-machine-learning-what-is-the-difference-between-sparse-vector-and-dense-vector&#34;&gt;Sparse vector formats&lt;/a&gt; store only the non-zero values of the vector, supporting optimisations for both memory use and performance.  This can yield significant gains in applications where the data is very sparse (mostly zeros) such as NLP (Natural Language Processing) and some machine learning applications.  For example, in NLP it is common to have vectors where 99% of the elements as zero.  A sparse vector therefore has 2 components: a &lt;code&gt;float64&lt;/code&gt; slice containing the non-zero values and an &lt;code&gt;int&lt;/code&gt; slice containing the indices of those non-zero values.  If we were to rewrite the example Dot function above so that one of the vectors, &lt;code&gt;x&lt;/code&gt;, is sparse (with &lt;code&gt;indx&lt;/code&gt; representing the indexes of the non-zero values) then it would look like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot1(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, indx []&lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) {
+  &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i, index := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; indx {
+    dot += x[i] * y[index]
+  }
+  &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;It should be clear from the code above that only the non-zero values of the sparse matrix &lt;code&gt;x&lt;/code&gt; are being processed, multiplying them by their respective elements from the dense vector &lt;code&gt;y&lt;/code&gt;.  Multiplying the zero values of &lt;code&gt;x&lt;/code&gt; by their respective elements of &lt;code&gt;y&lt;/code&gt; would result in zero and so is redundant as it would not affect the overall dot product.&lt;/p&gt;
+
+&lt;p&gt;If we wished to calculate a dot product where both vectors are sparse, we can still use the above function but first &lt;a href=&#34;https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)&#34;&gt;scatter&lt;/a&gt; the values of one of the vectors into a dense vector so it can be supplied to the function as &lt;code&gt;y&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;To measure the performance of our function and establish a baseline, we will test it using Go&amp;rsquo;s built in benchmarking functionality.  We will call the function with a number of different vector lengths to get a good feel of how the function performs over different inputs.  We shall test with vectors of length 100, 1,000, 10,000 and 100,000. To keep the number of tests manageable, we will fix the density of the sparse vector to 10% (only 10% of the elements are non-zero).&lt;/p&gt;
+
+&lt;p&gt;Here are the results of the benchmark for our baseline Go implementation:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;2-assembly-code&#34;&gt;2. Assembly code&lt;/h2&gt;
+
+&lt;p&gt;A full overview of &lt;a href=&#34;https://golang.org/doc/asm&#34;&gt;programming assembler with Go&lt;/a&gt; is beyond the scope of this blog post.  To implement our Dot funtion in assembler, we first need to define a prototype (the function definition, with no body) of the function within a &lt;code&gt;.go&lt;/code&gt; file within the package as follows:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Dot2 is a basic, literal assembler implementation of sparse dot product.&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot2(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, indx []&lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, incy &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;)
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Next, we write the assembly code implementation of the function in a separate file with the suffix &lt;code&gt;_amd64.s&lt;/code&gt;.  It should be clear, this targets AMD64 compatible CPUs and if you wish to target an alternative CPU you would need to replace the &lt;code&gt;amd64&lt;/code&gt; substring in the suffix with the corresponding label for your CPU.  Here is an initial, basic assmbler implementation of the sparse dot product function:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// func Dot2(x []float64, indx []int, y []float64) (dot float64)&lt;/span&gt;
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot2(SB), NOSPLIT, &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;$&lt;/span&gt;0
+  &lt;span style=&#34;color: #008000&#34;&gt;// move supplied parameters into registers&lt;/span&gt;
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX       &lt;span style=&#34;color: #008000&#34;&gt;// len(indx)&lt;/span&gt;
+
+  XORL    R9, R9                &lt;span style=&#34;color: #008000&#34;&gt;// i = 0&lt;/span&gt;
+  XORPS   X0, X0                &lt;span style=&#34;color: #008000&#34;&gt;// dot = 0&lt;/span&gt;
+
+loop:
+  CMPQ    R9, AX                &lt;span style=&#34;color: #008000&#34;&gt;// for i &amp;lt; len(indx)&lt;/span&gt;
+  JGE     end
+
+  MOVQ    (SI)(R9*8), R10       &lt;span style=&#34;color: #008000&#34;&gt;// indx[i]&lt;/span&gt;
+  MOVSD   (R8)(R9*8), X1        &lt;span style=&#34;color: #008000&#34;&gt;// x[i]&lt;/span&gt;
+  INCQ    R9                    &lt;span style=&#34;color: #008000&#34;&gt;// i++&lt;/span&gt;
+
+  MULSD   (DX)(R10*8), X1       &lt;span style=&#34;color: #008000&#34;&gt;// X1 = x[i] * y[indx[i]]&lt;/span&gt;
+  ADDSD   X1, X0                &lt;span style=&#34;color: #008000&#34;&gt;// dot += X1&lt;/span&gt;
+
+  JMP     loop
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The first thing to note is the &lt;code&gt;#include&lt;/code&gt; directive which should be familiar to anyone who has ever done any C/C++ programming.  This include allows us to use human readable names for the function and branch labels within the code.  Functions are always declared as &lt;code&gt;TEXT ·Dot2(SB), NOSPLIT, $0&lt;/code&gt; where &lt;code&gt;Dot2&lt;/code&gt; represents the function name and the value &lt;code&gt;$0&lt;/code&gt; indicates the size of the data frame.  As we are not allocating any new memory - beyond what is passed into the function - we are using a size of 0 (the &lt;code&gt;$&lt;/code&gt; symbol denotes the &lt;code&gt;0&lt;/code&gt; that follows it is a literal constant).&lt;/p&gt;
+
+&lt;p&gt;The first block of instructions moves the supplied function parameters into hardware registers so we can make use of them.  Of note is the fact that the memory offsets into the data frame are required to address the parameters correctly.  Slices are actually 24 bytes long and comprise 3 x 8 byte components:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;a pointer to the first element of the slice&lt;/li&gt;
+&lt;li&gt;the length of the slice&lt;/li&gt;
+&lt;li&gt;the capacity of the slice&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;You will notice at the end of the function, we move the result of the operation (the accumulator) from the register &lt;code&gt;X0&lt;/code&gt; back into the data frame so it can be accessed by the caller of the function.&lt;/p&gt;
+
+&lt;p&gt;The second block initialises the accumulator &lt;code&gt;X0&lt;/code&gt; and our loop index &lt;code&gt;R9&lt;/code&gt; by setting them to &lt;code&gt;0&lt;/code&gt;.  It does this by XORing them by themselves as this is more efficient that explicitly setting them to &lt;code&gt;0&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The rest of the function should be fairly clear, there is a check to see if the loop index has reached the end of the vector (&lt;code&gt;CMPQ    R9, AX&lt;/code&gt;) and if it has, the next instruction (&lt;code&gt;JGE     end&lt;/code&gt;) jumps to the label &lt;code&gt;end&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The next elements of &lt;code&gt;indx&lt;/code&gt; and &lt;code&gt;x&lt;/code&gt; are loaded into registers &lt;code&gt;R10&lt;/code&gt; and &lt;code&gt;X1&lt;/code&gt; accordingly and then the loop index &lt;code&gt;i&lt;/code&gt; is incremented.  The respective element of &lt;code&gt;y&lt;/code&gt; (using the loaded value of &lt;code&gt;indx&lt;/code&gt;in &lt;code&gt;R10&lt;/code&gt; to address it) is then multiplied by &lt;code&gt;X1&lt;/code&gt; and the result added to the accumulator &lt;code&gt;X0&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Lets compare the performance of this assembler version against against the original Go implementation:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The benchmark shows a modest improvement across the board.  This is most likely due to the removal of the rather expensive implicit bounds checking that Go performs when accessing slices.  There is no bounds checking in our assembler version.&lt;/p&gt;
+
+&lt;h2 id=&#34;3-loop-inversion&#34;&gt;3. Loop inversion&lt;/h2&gt;
+
+&lt;p&gt;The first optimisation we will apply is called &lt;a href=&#34;https://en.wikipedia.org/wiki/Loop_inversion&#34;&gt;&lt;em&gt;loop inversion optimisation&lt;/em&gt;&lt;/a&gt;.  In essence, this optimisation exchanges the &lt;code&gt;for&lt;/code&gt; loop from our original implementation for a &lt;code&gt;do...while&lt;/code&gt; style loop where the condition is evaluated at the end of the loop.  As we are now not evaluating the loop criteria until the end, we will also need to precede the loop with a conditional check to cover the case where the loop should run zero times.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot3(x []float64, indx []int, y []float64) (dot float64)
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot3(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORL    R9, R9
+  XORPS   X0, X0
+
+  CMPQ    R9, AX            // if i &amp;gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; len(indx)
+  JGE     end
+
+loop:
+  MOVQ    (SI)(R9*8), R10
+  MOVSD   (R8)(R9*8), X1  
+  INCQ    R9
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  CMPQ    R9, AX
+  JL      loop              // do...while(i &amp;lt; len(indx))
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can see in the code above that the unconditional jump (&lt;code&gt;JMP loop&lt;/code&gt;) instruction from our previous version &lt;code&gt;Dot2&lt;/code&gt; has been replaced with a conditional jump and the condition at the top of the loop has now been moved out of the loop entirely to precede it.  This has reduced the number of branch/jump instructions followed by 2 and almost halving the number of branch instructions processed (both followed and un-followed).  This is especially significant as branches are very expensive often causing &lt;a href=&#34;https://en.wikipedia.org/wiki/Pipeline_stall&#34;&gt;execution pipeline stalls&lt;/a&gt; and &lt;a href=&#34;https://en.wikipedia.org/wiki/Branch_misprediction&#34;&gt;branch mispredictions&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Lets review the benchmarks with our previous versions (&lt;code&gt;Dot1&lt;/code&gt; and &lt;code&gt;Dot2&lt;/code&gt;):&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;As expected, we can see a modest improvement over the previous versions.  This optimisation also allows us to now make further optimisations.&lt;/p&gt;
+
+&lt;h2 id=&#34;4-loop-reversal&#34;&gt;4. Loop reversal&lt;/h2&gt;
+
+&lt;p&gt;The next optimisation is called &lt;em&gt;loop reversal optimisation&lt;/em&gt;.  Loop reversal, changes the order in which a loop iterates, typically decrementing the loop counter down towards zero rather than incrementing up from zero.  The primary advantage is that the change can change data dependencies and enable other optimisations.  This approach can also eliminate further loop overhead as many architectures support native &lt;em&gt;jump if zero&lt;/em&gt; style instructions removing the need for the explicit &lt;code&gt;CMPQ&lt;/code&gt; instruction to compare with &lt;code&gt;0&lt;/code&gt; at the end of the loop.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot4(x []float64, indx []int, y []float64) (dot float64)
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot4(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX       // k &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; len(indx)
+
+  XORPS   X0, X0
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX                // if --k &amp;lt; 0
+  JL      end
+
+loop:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI                // SI +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; sizeOf(int)
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8                // R8 +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; sizeOf(float64)
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX                // do...while(--k &amp;gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 0)
+  JGE     loop
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;It should be clear from the code that we have substituted a single &lt;code&gt;SUBQ&lt;/code&gt; instruction for both the &lt;code&gt;INCQ&lt;/code&gt; instruction incrementing the loop counter and the &lt;code&gt;CMPQ&lt;/code&gt; instruction that preceded the conditional jump instruction at the end of the loop in the previous version.  However, we have also added two additional &lt;code&gt;ADDQ&lt;/code&gt; instructions to advance the pointers (&lt;code&gt;SI&lt;/code&gt; and &lt;code&gt;R8&lt;/code&gt;) through &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;indx&lt;/code&gt; every iteration of the loop.  As we are now using pointers to access the elements of &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;indx&lt;/code&gt; rather than indexing with the loop counter, the addressing of the data looks much cleaner and will have lower overhead on some architectures.&lt;/p&gt;
+
+&lt;p&gt;Lets check the impact of our changes on performance.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In all cases, this version performs slightly worse than the previous version.  This is most likely caused by additional overhead due to advancing the 2 pointers, &lt;code&gt;SI&lt;/code&gt; and &lt;code&gt;R8&lt;/code&gt;.  However, this change will allow us to now make other optimisations where we will realise the benefit.&lt;/p&gt;
+
+&lt;h2 id=&#34;5-loop-unrolling&#34;&gt;5. Loop unrolling&lt;/h2&gt;
+
+&lt;p&gt;To reduce the overhead from advancing pointers introduced in the previous optimisation, we will use &lt;a href=&#34;https://en.wikipedia.org/wiki/Loop_unrolling&#34;&gt;&lt;em&gt;Loop unrolling&lt;/em&gt;&lt;/a&gt; to spread this overhead and decrease the number of times it is executed.  &lt;em&gt;Loop unrolling&lt;/em&gt; (or loop unwinding as it is sometimes referred to) is a technique to reduce loop overhead by decreasing the number of times loop conditions are evaluated, pointer arithmetic is executed and the number of jumps (which are expensive).  Simply put, the body of the loop is duplicated multiple times which in our case means processing multiple vector elements per iteration of the loop.  For our use case we will unroll the loop 4 times i.e. duplicate the body of the loop 4 times and process 4 vector elements per loop iteration.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot5(x []float64, indx []int, y []float64) (dot float64)
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot5(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10             // indx[i]
+  MOVSD   (R8), X1              // x[i]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    8(SI), R10            // indx[i+1]
+  MOVSD   8(R8), X1             // x[i+1]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    16(SI), R10           // indx[i+2]
+  MOVSD   16(R8), X1            // x[i+2]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  MOVQ    24(SI), R10           // indx[i+3]
+  MOVSD   24(R8), X1            // x[i+3]
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI               // SI +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 4 * sizeOf(int)
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8               // R8 +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 4 * sizeOf(float64)
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX                // decrement loop counter by 4
+  JGE     loop
+
+tailstart:
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JE      end
+
+tail:
+  &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; process any remaining elements if len(indx) is not divisible by 4
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  JNE     tail
+
+end:
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can see in the code above that we have repeated the instructions from the body of the loop 4 times, processing 4 elements per iteration of the loop.  Each repeated instruction addresses the next vector element (+0, +1, +2, +3) and each iteration of the loop, the loop counter is decremented by 4 and the pointers are advanced by 4 elements.  It should also be noted that we have replicated the loop, without unrolling, under the &lt;code&gt;tail&lt;/code&gt; label.  This is to handle vectors of lengths that are not exactly divisible by 4 - the &lt;code&gt;tail&lt;/code&gt; section handles the remaining 1-3 elements after processing most of the elements in the main unrolled section.&lt;/p&gt;
+
+&lt;p&gt;Lets look at how this version compares with our previous benchmarks.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Whilst this appears to improve on our previous version in some cases, it is still slower than some of our earlier optimised versions.  Many modern CPUs are able to achieve a degree of parallelism through &lt;a href=&#34;https://en.wikipedia.org/wiki/Out-of-order_execution&#34;&gt;out-of-order&lt;/a&gt; execution to make use of instruction cycles that would otherwise be wasted.  By unrolling the loop we have created some additional dependencies within the loop which limit the amount of out-of-order execution.  Unrolling the loop allows us to make other optimisations, and the next will address the dependencies we have created.&lt;/p&gt;
+
+&lt;h2 id=&#34;6-software-pipelining&#34;&gt;6. Software Pipelining&lt;/h2&gt;
+
+&lt;p&gt;Using &lt;a href=&#34;https://en.wikipedia.org/wiki/Software_pipelining&#34;&gt;Software pipelining&lt;/a&gt; we can re-order the instructions to reduce the dependencies between adjacent instructions optimising for out-of-order execution.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot6(x []float64, indx []int, y []float64) (dot float64)
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot6(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0            // Use 2 accumulators to break dependency
+  XORPS   X9, X9            // chain and better pipelining
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10         // indx[i]
+  MOVQ    8(SI), R11        // indx[i+1]
+  MOVQ    16(SI), R12       // indx[i+2]
+  MOVQ    24(SI), R13       // indx[i+3]
+
+  MOVSD   (R8), X1          // x[i]
+  MOVSD   8(R8), X3         // x[i+1]
+  MOVSD   16(R8), X5        // x[i+2]
+  MOVSD   24(R8), X7        // x[i+3]
+
+  MULSD   (DX)(R10*8), X1
+  MULSD   (DX)(R11*8), X3
+  MULSD   (DX)(R12*8), X5
+  MULSD   (DX)(R13*8), X7
+
+  ADDSD   X1, X0
+  ADDSD   X3, X9
+  ADDSD   X5, X0
+  ADDSD   X7, X9
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JGE     loop
+
+tailstart:
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JE      end
+
+tail:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  JNE     tail
+
+end:
+  ADDSD   X9, X0            // Add accumulators together
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We can see in the code above, we have re-ordered the instructions in the main loop - effectively so that instructions dependent on other instructions appear further away from each other - this allows better instruction level parallelism through out-of-order execution within the CPU.  We have also added an additional accumulator to reduce the dependencies when accumulating all of the element products.  The two accumulators are added together at the end to form the final dot product.&lt;/p&gt;
+
+&lt;p&gt;Lets see the impact of our changes and compare with our previous benchmarks.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot6-4        	100000000	        10.3 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot6-4      	20000000	        59.7 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot6-4    	 2000000	       746 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  100000	     11971 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It should be clear from the benchmarks that this latest version is significantly faster than the others.&lt;/p&gt;
+
+&lt;h2 id=&#34;7-vectorisation&#34;&gt;7. Vectorisation&lt;/h2&gt;
+
+&lt;p&gt;The final optimisation we will apply is called &lt;a href=&#34;https://en.wikipedia.org/wiki/Automatic_vectorization&#34;&gt;Vectorisation&lt;/a&gt;.  Vectorisation is a form of parallelisation where a scalar implementation (processing a single pair of operands at a time) is converted so that a single operation is applied to multiple pairs of operands simultanteously.  This can be achieved through the use of &lt;a href=&#34;https://en.wikipedia.org/wiki/SIMD&#34;&gt;SIMD&lt;/a&gt; (Single Instruction, Multiple Data) instructions which are supported on most modern commodity CPUs.  Intel&amp;rsquo;s MMX, SSE and AVX extensions provide SIMD support.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot7(x []float64, indx []int, y []float64) (dot float64)
+TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot7(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+  MOVQ    x+0(FP), R8
+  MOVQ    indx+24(FP), SI
+  MOVQ    y+48(FP), DX
+  MOVQ    indx+32(FP), AX
+
+  XORPS   X0, X0
+  XORPS   X9, X9
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JL      tailstart
+
+loop:
+  MOVQ    (SI), R10
+  MOVQ    8(SI), R11
+  MOVQ    16(SI), R12
+  MOVQ    24(SI), R13
+
+  MOVUPD  (R8), X1            // Load x[i:i+1] into vector register
+  MOVUPD  16(R8), X3          // Load x[i+2:i+3] into vector register
+
+  MOVLPD  (DX)(R10*8), X2
+  MOVHPD  (DX)(R11*8), X2
+  MOVLPD  (DX)(R12*8), X4
+  MOVHPD  (DX)(R13*8), X4
+
+  MULPD   X2, X1              // multiply 2 pairs of elements
+  MULPD   X4, X3              // multiply 2 pairs of elements
+
+  ADDPD   X1, X0              // add the pair of products to the pairs of accumulators
+  ADDPD   X3, X9              // add the pair of products to the pairs of accumulators
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JGE     loop
+
+tailstart:
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  JE      end
+
+tail:
+  MOVQ    (SI), R10
+  MOVSD   (R8), X1
+
+  MULSD   (DX)(R10*8), X1
+  ADDSD   X1, X0
+
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
+  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+
+  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  JNE     tail
+
+end:
+  ADDPD   X9, X0          // Add accumulators together
+  MOVSD   X0, X7
+  UNPCKHPD X0, X0         // Unpack vector register and
+  ADDSD   X7, X0          // add the 2 values together
+
+  MOVSD   X0, dot+72(FP)
+  RET
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Using Intel&amp;rsquo;s SSE extensions we can operate on pairs of elements at a time.  Unfortunatly, due to the nature of sparse matrices, we are performing an implicit &lt;a href=&#34;https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)&#34;&gt;gather&lt;/a&gt; operation when loading elements from &lt;code&gt;y&lt;/code&gt;.  This means we have to load each element of &lt;code&gt;y&lt;/code&gt; individually and then pack them, in pairs, into the SSE vector registers.  In contrast, as we are processing the elements of &lt;code&gt;x&lt;/code&gt; sequentially we can directly load the elements 2 at a time.&lt;/p&gt;
+
+&lt;p&gt;Lets compare the results with our previous benchmarks.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot1-4         	100000000	        11.7 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot2-4         	100000000	        11.0 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot3-4         	100000000	        10.9 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot4-4        	100000000	        11.6 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot5-4        	100000000	        11.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot6-4        	100000000	        10.3 ns/op
+BenchmarkDot/10/100_github.com/james-bowman/algos/sparse/dot.Dot7-4        	200000000	         9.14 ns/op
+
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot1-4       	20000000	       111 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot2-4       	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot3-4       	20000000	       107 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot4-4      	20000000	       108 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot5-4      	20000000	       106 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot6-4      	20000000	        59.7 ns/op
+BenchmarkDot/100/1000_github.com/james-bowman/algos/sparse/dot.Dot7-4      	30000000	        43.4 ns/op
+
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot1-4     	 1000000	      1179 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot2-4     	 1000000	      1173 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot3-4     	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot4-4    	 1000000	      1169 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot5-4    	 1000000	      1189 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot6-4    	 2000000	       746 ns/op
+BenchmarkDot/1000/10000_github.com/james-bowman/algos/sparse/dot.Dot7-4    	 2000000	       701 ns/op
+
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  100000	     12640 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  100000	     12306 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  100000	     12179 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  100000	     12251 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  100000	     12388 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  100000	     11971 ns/op
+BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot7-4  	  200000	     11648 ns/op
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We can see from the benchmarks that this optimisation has yielded further performance gains.&lt;/p&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping up&lt;/h2&gt;
+
+&lt;p&gt;Reviewing the benchmarks we can see that in most cases, each optimisation provided incremental gains over the last.  In some cases however, certain optimisations actually resulted in a performance decrease.  This is because for some optimisations, the benefits are only realised when combined with other optimisations or are important because they open the door for other optimisations that would not have been possible otherwise.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-go-code-with-assembler-graphs.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/optimising-go-code-with-assembler-graphs.png&#34; alt=&#34;Benchmarked performance of each algorithm&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;The cumulative effect of all our optimisations is significantly faster than the original Golang version.  Where this function is used as a basic building block for other operations e.g. the inner loop of matrix multiplication, this improvement is effectively multiplied and will have an even bigger impact on performance.  It is however worth bearing in mind that these performance gains come at the cost of additional complexity, there is more code that is relatively complex and so harder to maintain.  This trade-off should be considered carefully when choosing to optimise code in this way.  It is also worth considering that some of these optimisations may work better or worse on specific CPU architectures so your mileage may vary.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Optimising algorithms in Go for machine learning - Part 3: The hashing trick</title>
+      <link>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part3/</link>
+      <pubDate>Fri, 07 Jul 2017 18:45:40 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part3/</guid>
+      <description>
+
+&lt;p&gt;This is the third in a series of blog posts sharing my experiences working with algorithms and data structures for machine learning.  These experiences were gained whilst building out the &lt;a href=&#34;http://github.com/james-bowman/nlp&#34;&gt;nlp project&lt;/a&gt; for &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;LSA (Latent Semantic Analysis)&lt;/a&gt; of text documents.&lt;/p&gt;
+
+&lt;p&gt;In Part 2 of this series, I explored &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part2/&#34;&gt;sparse matrix formats&lt;/a&gt; as a set of data structures for more efficiently storing and manipulating sparsely populated matrices (matrices where most elements contain zero values).  We tested the impact of using sparse formats, over the originally implemented dense matrix formats, using Go&amp;rsquo;s inbuilt benchmark functionality and found that our optimisations led to a reduction in memory consumption and processing time from 1 GB to 150 MB and 3.3 seconds to 1.2 seconds respectively.&lt;/p&gt;
+
+&lt;p&gt;The &lt;a href=&#34;http://github.com/james-bowman/sparse&#34;&gt;Golang sparse matrix format implementations&lt;/a&gt; used in the article are available on &lt;a href=&#34;http://github.com/james-bowman/sparse&#34;&gt;Github&lt;/a&gt; along with all the &lt;a href=&#34;http://github.com/james-bowman/nlpbench&#34;&gt;benchmarks and sample code&lt;/a&gt; used in this series.&lt;/p&gt;
+
+&lt;p&gt;In this article we will use the sparse matrix formats from the previous article to implement &amp;lsquo;the hashing trick&amp;rsquo;.&lt;/p&gt;
+
+&lt;h2 id=&#34;feature-extraction-vectorisation&#34;&gt;Feature Extraction (Vectorisation)&lt;/h2&gt;
+
+&lt;p&gt;In machine learning applications we frequently encode &amp;lsquo;things&amp;rsquo; as vectors of numerical features to allow quantative analysis and comparison.  For natural language processing, these &amp;lsquo;things&amp;rsquo; are usually text documents encoded as vectors of term frequencies i.e. the frequency with which each unique word (term) appears in the document.  When vectorising features in this way, it is important that all vectors are encoded consistently i.e. that frequencies for each specific term always map to the same row from one vector to another.  If featurers were not encoded consistently, with different positions in vectors or vectors of different length, then they could not be compared to one another: it would be like comparing apples and oranges.&lt;/p&gt;
+
+&lt;p&gt;Usually, consistent vectorisation is achieved using a predefined vocabulary of words, with each unique word in the vocabulary corresponding to the same specific vector row.  This can be implemented using a dictionary/map structure to map each unique word of the vocabulary to a vector row index.  The vocabulary can either be manually created, or more usually, it is trained from a representative set of training documents.  This approach has 3 main disadvantages as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;The memory required to store the vocabulary and associated row index mappings (especially as the vocabulary gets large - see point 2 below)&lt;/li&gt;
+&lt;li&gt;Any words missing from the vocabulary will not be represented as features in vectors encoded from the vocabulary.  To overcome this limitation, we usually train the vocabulary with a large and fully representative training data set to increase the chances that the model is exposed to any and all potentially required terms during training.&lt;/li&gt;
+&lt;li&gt;The requirement to train the vocabulary can make this algorithm unsuitable for some streaming data applications.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;feature-hashing-the-hashing-trick&#34;&gt;Feature Hashing (&amp;lsquo;the hashing trick&amp;rsquo;)&lt;/h2&gt;
+
+&lt;p&gt;Feature hashing (also known as &amp;lsquo;the hashing trick&amp;rsquo;) uses a hash function to map values to indices in feature vectors.  This removes the reliance on a pre-defined or trained vocabulary, as features are directly mapped based upon their hash value, meaning the same index can be repeatedly and consistenly reproduced given the same word and hash function.  This has the effect of reducing memory requirements and making it highly suitable for use in streaming applications where a pre-defined vocabulary might not be available or practical.&lt;/p&gt;
+
+&lt;p&gt;When using feature hashinig, the number of unique words across the corpus is unknown, so the dimensionality of feature vectors must be set in advance (so all vectors are in the same dimensional space).  This length is entirely arbitary but should be sufficiently large to support all required words from the language being used.  For an English language document corpora, this number is likely to be around 1,000,000 although in many applications, much smaller values can be sufficient.&lt;/p&gt;
+
+&lt;p&gt;Once the vector dimensionality is fixed, we can apply a hash function to each word in the documents to be vectorised.  We then calculate the modulus of the resulting hash value with the vector length.  This calculation will yield the row index for the word applicable for all vectors within the defined dimensional space (using the same hash function)  - &lt;code&gt;index = hash(word) % vectorLength&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;It should be clear that this approach will create vectors of extremely high dimensionality and so without &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part2/&#34;&gt;sparse matrix formats&lt;/a&gt;, as discussed in the previous article, this approach is not feasible because of the memory requirements necessary to store all the elements in dense matrix format.&lt;/p&gt;
+
+&lt;p&gt;One potential downside of using the hashing trick is that multiple, different words may translate to the same index in the vector space (hash collisions) resulting in a loss of precision.  One way of reducing the effect of collisions is to choose a dimensionality sufficiently high enough so as to lessen the likelihood of collisions.  Another approach sometimes adopted is to use a second hash function that will indicate the sign (+/-) to apply to the value being updated within the vector.  If 2 words equate to the same index in the vector space - one may result in +1 (or +&lt;em&gt;n&lt;/em&gt; where &lt;em&gt;n&lt;/em&gt; is the number of occurances of the word within the corresponding document) and the other may result in -1 (or -&lt;em&gt;n&lt;/em&gt; where &lt;em&gt;n&lt;/em&gt; is the number of occurances of the word within the corresponding document).  In this way, the collision does not compound the error but rather the two word occurances cancel each other out.&lt;/p&gt;
+
+&lt;p&gt;Another disadvantage of feature hashing is that, once vectors are created, it is difficult to determine which frequency values relate to which terms.  When using a vocabulary, with associated index mappings, it is easier to analyse frequencies for particular words.  This can make feature hashing unsuitable for some applications.&lt;/p&gt;
+
+&lt;h2 id=&#34;implementation&#34;&gt;Implementation&lt;/h2&gt;
+
+&lt;p&gt;Here is the code for the &lt;code&gt;HashingVectoriser&lt;/code&gt; that implements the hashing trick.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; HashingVectoriser &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+	NumFeatures   &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;
+	wordTokeniser *regexp.Regexp
+	stopWords     &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; NewHashingVectoriser(removeStopwords &lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;, numFeatures &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) *HashingVectoriser {
+	&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; stop &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; removeStopwords {
+		stop = make(&lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;)
+		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; stopWords {
+			stop[word] = &lt;span style=&#34;color: #0000ff&#34;&gt;true&lt;/span&gt;
+		}
+	}
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; &amp;amp;HashingVectoriser{
+		NumFeatures:   numFeatures,
+		wordTokeniser: regexp.MustCompile(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;\\w+&amp;quot;&lt;/span&gt;),
+		stopWords:     stop,
+	}
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) Fit(train ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) *HashingVectoriser {
+	&lt;span style=&#34;color: #008000&#34;&gt;// Do nothing - the HashingVectoriser is stateless and does not&lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// require training.  Method included for compatibility with&lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// other vectorisers&lt;/span&gt;
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; v
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	mat := sparse.NewDOK(v.NumFeatures, len(docs))
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+		words := v.tokenise(doc)
+
+		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
+			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; v.stopWords != &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt; {
+				&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; v.stopWords[word] {
+					&lt;span style=&#34;color: #0000ff&#34;&gt;continue&lt;/span&gt;
+				}
+			}
+			h := murmur3.Sum32([]byte(word))
+			i := int(h) % v.NumFeatures
+
+			mat.Set(i, d, mat.At(i, d)+1)
+		}
+	}
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) FitTransform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; v.Transform(docs...)
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) tokenise(text &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
+	&lt;span style=&#34;color: #008000&#34;&gt;// convert content to lower case&lt;/span&gt;
+	c := strings.ToLower(text)
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// match whole words, removing any punctuation/whitespace&lt;/span&gt;
+	words := v.wordTokeniser.FindAllString(c, -1)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; words
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;We shall do some basic benchmarking of the &lt;code&gt;HashingVectoriser&lt;/code&gt; against our exising &lt;code&gt;CountVectoriser&lt;/code&gt; implementation.  Whilst the main advantage of the HashingVectoriser is that it removes the dependency on the training data set to train the model with a complete vocabulary, we want to ensure the performance and memory consumption are at least comparable to the &lt;code&gt;CountVectoriser&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;We shall benchmark the &lt;code&gt;Transform()&lt;/code&gt; method of the &lt;code&gt;HashingVectoriser&lt;/code&gt; and compare this against benchmarks for both the &lt;code&gt;Transform()&lt;/code&gt; and &lt;code&gt;FitTransform()&lt;/code&gt; methods of &lt;code&gt;CountVectoriser&lt;/code&gt;.  This will allow comparison of the raw transforms for both algorithms but also to see any savings achieved by not having to train the vocabulary (Fitting).&lt;/p&gt;
+
+&lt;p&gt;Here is the benchmarking code which uses &lt;a href=&#34;https://golang.org/pkg/testing/#hdr-Benchmarks&#34;&gt;Golang&amp;rsquo;s inbuilt benchmarking functionality&lt;/a&gt;.  The benchmarks make use of the 20 Newsgroups dataset as used in Scikit Learn.  In this case, we are using the entire dataset rather than a subset as in the last article.  This dataset contains 19,998 documents comprising a vocabulary of 209,412 unique words.  Our CountVectoriser will create a term document matrix 209,412 rows x 19,998 columns and a density of 0.1%.  We shall set the vector dimensionality for the &lt;code&gt;HashingVectoriser&lt;/code&gt; to 1,000,000 rows.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark CountVectoriser vs HashingVectoriser&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPCountVectoriserTransform(b *testing.B) {
+	files := Load()
+	vect := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect.Fit(files...)
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		mat, _ := vect.Transform(files...)
+	}
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPCountVectoriserFitTransform(b *testing.B) {
+	files := Load()
+	vect := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		mat, _ := vect.FitTransform(files...)
+	}
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPHashingVectoriserFitTransform(b *testing.B) {
+	files := Load()
+	vect := nlp.NewHashingVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;, 1000000)
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		mat, _ := vect.FitTransform(files...)
+	}
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And here are the results.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Jamess-MacBook-Pro:nlpbench jbowman$ go test -bench=NLP -benchmem
+BenchmarkNLPCountVectoriserTransform-4       1	7364512097 ns/op	1098524336 B/op	 8181853 allocs/op
+BenchmarkNLPCountVectoriserFitTransform-4    1	11587444509 ns/op	1717760288 B/op	16137998 allocs/op
+BenchmarkNLPHashingVectoriserFitTransform-4  1	6578351432 ns/op	1098525672 B/op	 8182272 allocs/op
+PASS
+ok  	github.com/james-bowman/nlpbench	35.133s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;From the results of the benchmarks we can see that the &lt;code&gt;HashingVectoriser&lt;/code&gt; is slightly faster at transforming the data than the &lt;code&gt;CountVectoriser&lt;/code&gt;.  However, the real saving is that the &lt;code&gt;HashingVectoriser&lt;/code&gt; does not require training.  This can save time - using the same sized corpus for training and transforming, both take similar lengths of time - but also memory consumption.  The &lt;code&gt;HashingVectoriser&lt;/code&gt; does not need to store the vocabulary and associated index mappings in memory (over 600 MB using our training data).&lt;/p&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping Up&lt;/h2&gt;
+
+&lt;p&gt;Using a &lt;code&gt;HashingVectoriser&lt;/code&gt; can remove the need to pre-train a vocabulary better supporting streaming applications and also reducing memory consumption (by over 600 MB in our benchmarks).  However, the &lt;code&gt;HashingVectoriser&lt;/code&gt; is not without its drawbacks.  Using a &lt;code&gt;HashingVectoriser&lt;/code&gt;, one trades precision and accuracy for utility and memory consumption.&lt;/p&gt;
+
+&lt;p&gt;The &lt;a href=&#34;http://github.com/james-bowman/nlpbench&#34;&gt;benchmarks and sample code&lt;/a&gt; used in this article are all on &lt;a href=&#34;http://github.com/james-bowman/nlpbench&#34;&gt;Github&lt;/a&gt;.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Optimising algorithms in Go for machine learning - Part 2: Sparse matrix formats</title>
+      <link>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part2/</link>
+      <pubDate>Fri, 09 Jun 2017 16:45:40 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part2/</guid>
+      <description>
+
+&lt;p&gt;This is the second in a series of blog posts sharing my experiences working with algorithms and data structures for machine learning.  These experiences were gained whilst building out the &lt;a href=&#34;http://github.com/james-bowman/nlp&#34;&gt;nlp project&lt;/a&gt; for &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;LSA (Latent Semantic Analysis)&lt;/a&gt; of text documents.&lt;/p&gt;
+
+&lt;p&gt;In &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/&#34;&gt;Part 1 of this series&lt;/a&gt;, I explored alternative approaches for representing and applying &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/#tf-idf-term-frequency-inverse-document-frequency&#34;&gt;TF-IDF&lt;/a&gt; transforms for weighting term frequencies across document corpora.  We tested the approaches using Go&amp;rsquo;s inbuilt benchmark functionality and found that our optimisations materially improved not just memory consumption but also performance (reducing memory consumption and processing time from 7 GB and 41 seconds to 250 KB and 0.8 seconds respectively).  In this blog post I shall explore other areas for optimisation, seeking to further reduce memory consumption and processing time.&lt;/p&gt;
+
+&lt;h2 id=&#34;matrix-sparsity&#34;&gt;Matrix Sparsity&lt;/h2&gt;
+
+&lt;p&gt;Machine learning applications typically model entities as vectors of numerical features so that they may be compared and analysed quantitively.  These vectors can be considered collectively as a matrix.  In the case of &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;Latent Semantic Analysis (LSA)&lt;/a&gt; as implemented in the &lt;a href=&#34;http://github.com/james-bowman/nlp&#34;&gt;nlp project&lt;/a&gt;, documents are the entities and the words/terms they contain are the features.  The elements within the matrix represent the frequency that each word appears in the associated document.  &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;For more detailed explanation of term document matrices and LSA please refer to this blog post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The vocabulary of words occuring within a modestly sized document corpus of 3,000 documents could be hundreds of thousands of words.  However, each document probably only contains a couple of hundred unique terms.  To represent such a corpus as numerical feature vectors would therefore require a ~200,000 x 3,000 matrix (terms x documents) with 99% of the elements containing zeros.  Storing all the elements of such a matrix, using 64 bits per element, would require over 4GB of memory.&lt;/p&gt;
+
+&lt;p&gt;Thankfully, there are data structures and algorithms specifically designed for dealing with such sparse matrices that capitalise on the sparsity of the matrix by only storing the non-zero values.  This reduces the memory/storage requirements and processing effort to represent and process the matrix.&lt;/p&gt;
+
+&lt;h2 id=&#34;sparse-matrix-formats&#34;&gt;Sparse Matrix Formats&lt;/h2&gt;
+
+&lt;p&gt;Sparse matrix data structures can effectively be divided into 3 main categories:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Creational&lt;/strong&gt; - Sparse matrix formats suited to construction and random access updates of matrices.  Matrix formats in this category include &lt;a href=&#34;#dok-dictionary-of-keys-format&#34;&gt;DOK (Dictionary Of Keys)&lt;/a&gt; and &lt;a href=&#34;#coo-coordinate-format&#34;&gt;COO (COOrdinate)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Operational&lt;/strong&gt; - Sparse matrix formats suited to arithmetic operations e.g. multiplication or other operations requiring sequential access to elements.  Matrix formats in this category include &lt;a href=&#34;#csr-compressed-sparse-row-format&#34;&gt;CSR (Compressed Sparse Row)&lt;/a&gt; and &lt;a href=&#34;#csc-compressed-sparse-column-format&#34;&gt;CSC (Compressed Sparse Column)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Specialised&lt;/strong&gt; - Specialised matrix formats optimised for specific sparsity patterns.  Matrix formats in this category include &lt;a href=&#34;#dia-diagonal-format&#34;&gt;DIA (DIAgonal)&lt;/a&gt; for efficiently storing and manipulating symmetric diagonal matrices.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;A common practice is to construct sparse matrices using a creational format e.g. DOK or COO and then convert them to an operational format e.g. CSR for arithmetic operations.&lt;/p&gt;
+
+&lt;h3 id=&#34;1-creational-formats&#34;&gt;1. Creational Formats&lt;/h3&gt;
+
+&lt;h4 id=&#34;dok-dictionary-of-keys-format&#34;&gt;DOK (Dictionary Of Keys) format&lt;/h4&gt;
+
+&lt;p&gt;DOK format uses a dictionary/map data structure as its backing store, mapping row/column pairs (i, j) to matrix elements containing non-zero values.  Only non-zero values and their row/column index pairs are stored so any items missing from the map are assumed to be zero.  Using a hash map as the underlying data structure means random access (both reads and writes) is relatively fast (&lt;em&gt;O(1)&lt;/em&gt;) but sequential iteration over the elements is relatively slow making this format a good choice for incrementally constructing or updating a matrix but poor for arithmetic operations.&lt;/p&gt;
+
+&lt;h4 id=&#34;coo-coordinate-format&#34;&gt;COO (COOrdinate) format&lt;/h4&gt;
+
+&lt;p&gt;Also known as Triplet format, the COO format stores the row and column indices of non-zero values along with the values themselves.  Each row index, column index and data value tuple is stored in 3 respective slices such that &lt;code&gt;element(row[i], column[i]) = value[i]&lt;/code&gt;.  Since the slices are unordered and duplicate elements are allowed, appending non-zero elements to the end of the slices is very fast (&lt;em&gt;O(1)&lt;/em&gt;).  However, this also means that random access reads of elements is relatively slow (&lt;em&gt;O(n)&lt;/em&gt;) and sequential iteration can also be slow (sorting the slices can improve access times).  These characteristics make this matrix format a good choice for initial construction of a matrix or as an intermediate format for converting to CSR format but poor for arithmetic operations (assuming the slices are unsorted).&lt;/p&gt;
+
+&lt;h3 id=&#34;2-operational-formats&#34;&gt;2. Operational Formats&lt;/h3&gt;
+
+&lt;h4 id=&#34;csr-compressed-sparse-row-format&#34;&gt;CSR (Compressed Sparse Row) format&lt;/h4&gt;
+
+&lt;p&gt;Also known as CRS (Compressed Row Storage), this format is similar to COO above except that the row index slice is compressed.  Specifically, the row index slice stores the cumulative count of non-zero elements in each row such that &lt;code&gt;row[i]&lt;/code&gt; contains the index into both &lt;code&gt;column[]&lt;/code&gt; and &lt;code&gt;data[]&lt;/code&gt; of the first non-zero element of row &lt;code&gt;i&lt;/code&gt;.  Thus ranging across data from &lt;code&gt;data[row[i]]&lt;/code&gt; to &lt;code&gt;data[row[i+1]-1]&lt;/code&gt; will yield all values from row &lt;code&gt;i&lt;/code&gt;.  For &lt;a href=&#34;https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29&#34;&gt;a more detailed explanation of CSR sparse matrix format please refer here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Relative to COO, the compression reduces storage requirements, allows faster random access reads of elements and row slicing but means making changes to the sparsity pattern is very slow (changing a zero value to non-zero).  These characteristics make this format a poor choice for random access updates, passable for random access reads and good for arithmetic operations.&lt;/p&gt;
+
+&lt;h4 id=&#34;csc-compressed-sparse-column-format&#34;&gt;CSC (Compressed Sparse Column) format&lt;/h4&gt;
+
+&lt;p&gt;Also known as CCS (Compressed Column Storage), this format is identical to CSR above except that the column index slice is compressed rather than the row index slice as with CSR.  The result is that CSC stores values in column major order rather than row major order as with CSR.  CSC can be thought of as a natural transpose of CSR.&lt;/p&gt;
+
+&lt;h3 id=&#34;3-specialised-formats&#34;&gt;3. Specialised Formats&lt;/h3&gt;
+
+&lt;h4 id=&#34;dia-diagonal-format&#34;&gt;DIA (DIAgonal) format&lt;/h4&gt;
+
+&lt;p&gt;DIA is a specialised format for storing symmetric diagonal matrices.  Symmetric diagonal matrices are square shaped and so have the same number of rows and columns, with only the elements along the diagonal (top left to bottom right) containing non-zero values.  The DIA format takes advantage of this fact by only storing the diagonal values which it stores in a single slice such that &lt;code&gt;element(i, j) = value[j] or 0 if i != j&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;putting-it-into-practice&#34;&gt;Putting it into Practice&lt;/h2&gt;
+
+&lt;p&gt;Our implementation of Latent Semantic Analysis in the nlp project comprises 3 steps as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-feature-extraction-vectorisation&#34;&gt;&lt;strong&gt;Feature Extraction/Vectorisation&lt;/strong&gt;&lt;/a&gt; - Converting raw text documents into vectors of numerical features to create a term document matrix&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;{{ ref &amp;quot;#2-tf-idf-weighting&amp;quot; }}&#34;&gt;&lt;strong&gt;TF/IDF Weighting&lt;/strong&gt;&lt;/a&gt; - Extracting weighting values based upon values in the term document matrix and then applying them to the matrix.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;{{ ref &amp;quot;#3-truncated-singular-value-decomposition&amp;quot; }}&#34;&gt;&lt;strong&gt;Truncated Singular Value Decomposition&lt;/strong&gt;&lt;/a&gt; - reducing the dimensionality (to the top k most significant dimensions) of the weighted term document matrix.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Currently, each of these 3 steps outputs a dense matrix.  In addition, the TF-IDF weightings extracted and applied in step 2 are stored as a dense matrix to be multiplied with the term document matrix.&lt;/p&gt;
+
+&lt;h3 id=&#34;1-feature-extraction-vectorisation&#34;&gt;1. Feature Extraction/Vectorisation&lt;/h3&gt;
+
+&lt;p&gt;Step 1 constructs a matrix incrementally based upon the terms encountered whilst parsing the document corpus.  We suspect the matrix will be very sparse as most documents will only contain a couple of hundred unique terms from a corpus wide vocabulary of hundreds of thousands of terms.  The current dense matrix implementation is therefore very wasteful storing all of the zero values in addition to the non-zero values.  A creational sparse matrix format is probably the most appropriate format to use for this step.  Specifically, a DOK (Dictionary Of Keys) format will be most suited in this case as the matrix is constructed incrementally.&lt;/p&gt;
+
+&lt;p&gt;Here is a code snippet showing the current feature extraction using a Dense format matrix.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *CountVectoriser1) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	mat := mat64.NewDense(len(v.Vocabulary), len(docs), &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+		words := v.tokenise(doc)
+
+		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
+			i, exists := v.Vocabulary[word]
+
+			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; exists {
+				mat.Set(i, d, mat.At(i, d)+1)
+			}
+		}
+	}
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And here is the same code modified to use a Dictionary Of Keys (DOK) sparse format matrix.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *DOKCountVectoriser1) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (*sparse.DOK, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	mat := sparse.NewDOK(len(v.Vocabulary), len(docs))
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+		words := v.tokenise(doc)
+
+		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
+			i, exists := v.Vocabulary[word]
+
+			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; exists {
+				mat.Set(i, d, mat.At(i, d)+1)
+			}
+		}
+	}
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;As you can see there is little difference to the code beyond the type of matrix used.  To test the two versions I used Go&amp;rsquo;s built in benchmark functionality and a subset of the 20 Newsgroups dataset as used in Scikit Learn.  The subset of the dataset used for this benchmark comprises 2,001 documents representing a vocabulary of 33,552 unique terms.  This results in a a term document matrix of size 33,552 x 2,001 with only 385,944 non-zero values (99.5% of the matrix elements contain zero values).  Here are the two benchmark functions.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark feature extraction vectorisation into Dense vs Sparse matrices&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// Baseline Dense matrix vectorisation&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseCountVectoriserTransform(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect.Fit(files...)
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		vect.Transform(files...)
+	}
+}
+
+&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark DOK Sparse matrix vectorisation&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDOKCountVectoriserTransform(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect.Fit(files...)
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		vect.Transform(files...)
+	}
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The results are shown below.  It should be clear from the results that the new Sparse matrix implementation is slightly faster than the Dense matrix based implementation at 0.8 seconds vs 1.1 but most importantly uses considerably less memory (80 MB vs the 500 MB used by the Dense implementation).&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Jamess-MacBook-Pro:nlpbench jbowman$ go test -bench=CountVectoriserTransform -benchmem
+BenchmarkDenseCountVectoriserTransform-4  1	  1149735130 ns/op	 588033600 B/op	  688868 allocs/op
+BenchmarkDOKCountVectoriserTransform-4    2	  849252150 ns/op	 83780632 B/op	  712011 allocs/op
+PASS
+ok  	github.com/james-bowman/nlpbench	6.640s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;2-tf-idf-weighting&#34;&gt;2. TF/IDF Weighting&lt;/h3&gt;
+
+&lt;p&gt;In &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/&#34;&gt;part 1 of this series&lt;/a&gt;, we identified the TF-IDF weightings matrix to be a symmetric diagonal matrix and so switched to storing it as a simple slice containing just the diagonal values.  This resulted in material improvements to both storage requirements and processing time.  We will now switch back to using a matrix for the TF-IDF weightings but this time, rather than using a dense matrix format as before, we will use the appropriate DIAgonal sparse matrix format.&lt;/p&gt;
+
+&lt;p&gt;Step 2, takes the term document matrix constructed during step 1, extracts weighting values and stores them in a DIAgonal matrix which is then multiplied by the term document matrix.  The resulting matrix product will have the same sparsity pattern of non-zero values as the input term document matrix.  As the product will clearly therefore also be a sparse matrix and will be the result of an arithmetic operation we should consider the CSR (Compressed Sparse Row) sparse matrix format for this matrix.  We should also consider converting the input matrix to CSR prior to the arithmetic operation.&lt;/p&gt;
+
+&lt;p&gt;Here is a code snippet showing the current TF-IDF implementation using a Dense format matrix and a slice for the tf-idf weighting values.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer3 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+	weights []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Fit(mat mat64.Matrix) Transformer {
+	m, n := mat.Dims()
+
+	t.weights = make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+		df := 0
+		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+				df++
+			}
+		}
+		idf := math.Log(float64(1+n) / float64(1+df))
+		t.weights[i] = idf
+	}
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	m, n := mat.Dims()
+	product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// apply a function to every element of the matrix in turn which&lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// multiplies the element value by the corresponding term weight&lt;/span&gt;
+	product.Apply(&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(i, j &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, v &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt; {
+		&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; (v * t.weights[i])
+	}, mat)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;And here is the same code modified to use sparse format matrices for both the TF-IDF weighting values (DIAgonal format) and for the input and output matrices (CSR - Compressed Sparse Row format).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; SparseTfidfTransformer &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+	transform mat64.Matrix
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) Fit(mat mat64.Matrix) *SparseTfidfTransformer {
+	m, n := mat.Dims()
+
+	weights := make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+
+	csr, isCsr := mat.(*sparse.CSR)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+		df := 0
+		&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; isCsr {
+			&lt;span style=&#34;color: #008000&#34;&gt;// if matrix is CSR, take advantage of the RowNNZ() method to &lt;/span&gt;
+			&lt;span style=&#34;color: #008000&#34;&gt;// get number of documents in which term appears.&lt;/span&gt;
+			df = csr.RowNNZ(i)
+		} &lt;span style=&#34;color: #0000ff&#34;&gt;else&lt;/span&gt; {
+			&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+				&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+					df++
+				}
+			}
+		}
+		idf := math.Log(float64(1+n) / float64(1+df))
+		weights[i] = idf
+	}
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// build a diagonal matrix from array of term weighting values for&lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// subsequent multiplication with term document matrics&lt;/span&gt;
+
+	t.transform = sparse.NewDIA(m, weights)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) Transform(mat mat64.Matrix) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	product := &amp;amp;sparse.CSR{}
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// simply multiply the matrix by our idf transform (the diagonal matrix &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// of term weights)&lt;/span&gt;
+	product.Mul(t.transform, mat)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) FitTransform(mat mat64.Matrix) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This time, there is a little more difference between the 2 implementations.  If the input matrix is CSR format we take advantage of the RowNNZ() method to efficiently determine the number of non-zero values in each row which is used to calculate the inverse document frequency (the number of documents each term occurs in).  The TF-IDF weighting matrix is then multiplied by the input term document matrix.&lt;/p&gt;
+
+&lt;p&gt;To test the two versions I used Go&amp;rsquo;s built in benchmark functionality and the same subset of the 20 Newsgroups dataset as used in Scikit Learn.  Here are the two benchmark functions.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseTfidfFitTransform(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect.Fit(files...)
+	mat, _ := vect.Transform(files...)
+
+	trans := &amp;amp;TfidfTransformer3{}
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		trans.FitTransform(mat)
+	}
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkSparseTfidfFitTransform(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect.Fit(files...)
+	mat, _ := vect.Transform(files...)
+
+	trans := &amp;amp;SparseTfidfTransformer{}
+
+	b.ResetTimer()
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		trans.FitTransform(mat.ToCSR())
+	}
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The results are shown below.  It should be clear from the results that the new Sparse matrix implementation is considerably faster than the Dense matrix based implementation at 0.1 seconds vs 2.2 seconds but most importantly uses considerably less memory (16 MB vs the 500 MB used by the Dense implementation).&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Jamess-MacBook-Pro:nlpbench jbowman$ go test -bench=TfidfFitTransform -benchmem
+BenchmarkDenseTfidfFitTransform-4   1	2238133519 ns/op	537378960 B/op	       4 allocs/op
+BenchmarkSparseTfidfFitTransform-4  10	 138069814 ns/op	16253248 B/op	      12 allocs/op
+PASS
+ok  	github.com/james-bowman/nlpbench	8.277s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;3-truncated-singular-value-decomposition&#34;&gt;3. Truncated Singular Value Decomposition&lt;/h3&gt;
+
+&lt;p&gt;Step 3 outputs a matrix of much smaller dimensionality but as this matrix contains only the most significant dimensions, it is likely to be very dense.  Therefore, a dense matrix format is still the most appropriate choice of format for this step and so no changes will be made to this step at this point.&lt;/p&gt;
+
+&lt;h2 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h2&gt;
+
+&lt;p&gt;To test the impact of our changes to steps 1 &amp;amp; 2 above together we will run the following benchmark functions.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseEndToEndVectAndTrans(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	b.ResetTimer()
+
+	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	trans := &amp;amp;TfidfTransformer3{}
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		mat, _ := vect.FitTransform(files...)
+		trans.FitTransform(mat)
+	}
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkSparseEndToEndVectAndTrans(b *testing.B) {
+	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+
+	b.ResetTimer()
+
+	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	trans := &amp;amp;SparseTfidfTransformer{}
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+		mat, _ := vect.FitTransform(files...)
+		trans.FitTransform(mat.ToCSR())
+	}
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The results are shown below.  We can see that the current dense implementation of steps 1 &amp;amp; 2 (with the optimisations made in &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/&#34;&gt;the previous post in this series&lt;/a&gt;) took 3.3 seconds to complete and consumes over 1 GB of memory.  In contrast, the new sparse format based implementation takes only 1.2 seconds to complete and consumes only 150 MB of memory.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Jamess-MacBook-Pro:nlpbench jbowman$ go test -bench=EndToEndVect -benchmem
+BenchmarkDenseEndToEndVectAndTrans-4    1	3373285711 ns/op	1180200344 B/op	 1379753 allocs/op
+BenchmarkSparseEndToEndVectAndTrans-4   1	1232713457 ns/op	154805032 B/op	 1402819 allocs/op
+PASS
+ok  	github.com/james-bowman/nlpbench	5.110s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping Up&lt;/h2&gt;
+
+&lt;p&gt;Using Sparse matrix formats in the place of Dense formats can significantly reduce both memory consumption and processing time.  Not necessarily because the algorithms are cleverer but simply because they are doing less work by processing only the non-zero elements.  Switching to sparse matrix formats, we saw a reduction in memory consumption and processing time from 1 GB to 150 MB and 3.3 seconds to 1.2 seconds respectively.&lt;/p&gt;
+
+&lt;p&gt;The &lt;a href=&#34;http://github.com/james-bowman/sparse&#34;&gt;Golang sparse matrix format implementations used in this article are available on Github&lt;/a&gt; along with all the &lt;a href=&#34;http://github.com/james-bowman/nlpbench&#34;&gt;benchmarks and sample code&lt;/a&gt; used in this article.  The sparse matrix library is still quite basic in terms of features and available operations and I am hoping to extend it in due course with other operations (e.g. add, subtract, etc.) and further optimisations (e.g. parallel/fast matrix multiplication, BLAS integration, etc.).&lt;/p&gt;
+
+&lt;p&gt;I would love to hear other people&amp;rsquo;s experiences of using or developing dense or sparse matrix implementations and any challenges they encountered and how they overcame them.  Please share your experiences, thoughts and suggestions in the comments below.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Optimising algorithms in Go for machine learning</title>
+      <link>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/</link>
+      <pubDate>Fri, 31 Mar 2017 16:31:29 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/</guid>
+      <description>
+
+&lt;p&gt;In my &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;last blog post I walked through the use of machine learning algorithms in Golang to analyse the latent semantic meaning of documents&lt;/a&gt;.  These algorithms, like many others in data science, rely on linear algebra and vector space analysis.  By their nature, they often have to deal with large data sets, so any inefficiencies in the data structures used or algorithms themselves can result in a large impact on overall performance and/or memory usage.  Inefficiencies that are negligable when working with small data sets can have a huge cost applied across extremely large datasets.  As memory is a constrained resource, this could end up limiting the size of data sets that may be processed (certainly without having to resort to persistent storage and/or alternative algorithms) or the types of algorithms used.  To this end, I decided to see if I could optimise the algorithms I used to consume less memory and improve processing performance without sacrificing too much functionality or accuracy.  This is the first in a series of articles sharing my experiences benchmarking and optimising the algorithms and data structures used whilst building out the &lt;a href=&#34;http://github.com/james-bowman/nlp&#34;&gt;nlp project&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;optimisation-of-the-tf-idf-transform&#34;&gt;Optimisation of the TF-IDF transform&lt;/h2&gt;
+
+&lt;p&gt;As can be seen in the code snippet below, the TF-IDF transformer maintains a matrix internally,which is used to transform matrices containing raw term freqencies(tf) into weighted tf-idf values (term frequency - inverse document frequencies).  The transform is simply multiplied by the input tf matrix to produce the tf-idf matrix.  Please refer to the &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;previous blog post for a more in depth description of TF-IDF&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The transform matrix is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Diagonal_matrix#Symmetric_diagonal_matrices&#34;&gt;symmetric diagonal matrix&lt;/a&gt; and so will have as many rows and columns as there were unique terms/words in the training data set.  For a representative sample of 3000 articles from internet sites, I found the number of unique terms was typically around 30,000 which would require a 30,000 x 30,000 transform matrix.  Therefore the TF-IDF transform is a 30,000 x 30,000 matrix with elements of type float64 which will require approximately 7GB of memory.  Ironically the majority of elements within this matrix will contain zeros, in fact, only values along the diagonal (from top left to bottom right) will be non-zero.  There is clearly scope to optimise its memory use.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer1 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+    transform *mat64.Dense
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) Fit(mat mat64.Matrix) Transformer {
+    m, n := mat.Dims()
+
+    &lt;span style=&#34;color: #008000&#34;&gt;// build a diagonal matrix from array of term weighting values for subsequent&lt;/span&gt;
+    &lt;span style=&#34;color: #008000&#34;&gt;// multiplication with term document matrics&lt;/span&gt;
+    t.transform = mat64.NewDense(m, m, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+        df := 0
+        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+            &lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+                df++
+            }
+        }
+        idf := math.Log(float64(1+n) / float64(1+df))
+        t.transform.Set(i, i, idf)
+    }
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+    m, n := mat.Dims()
+    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    &lt;span style=&#34;color: #008000&#34;&gt;// simply multiply the matrix by our idf transform (the diagonal matrix of term weights)&lt;/span&gt;
+    product.Product(t.transform, mat)
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;My initial thought was to use a sparse matrix instead of the dense matrix implementation I was using.  A sparse matrix could more efficiently store a matrix mostly comprised of zeros, storing only the non-zero values.  Unfortunately the gonum matrix library I am using does not currently have a sparse matrix implementation.&lt;/p&gt;
+
+&lt;p&gt;As an alternative approach, I considered simply storing the non-zero idf (term weights) values as an array of float64 values and then individually multiplying every element within the input raw tf matrix by its corresponding term weight from the array.  The code for this implementation called TfidfTransformer2 is shown below.  Note the differences in the &lt;code&gt;Fit()&lt;/code&gt; method where we no longer build a symmetric diagonal transform matrix and simply keep the array of term weights.  Also, the &lt;code&gt;Transform()&lt;/code&gt; method is now changed to simply iterate over every matrix element and multiply its value by the corresponding term weight from the array.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer2 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+    weights []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) Fit(mat mat64.Matrix) Transformer {
+    m, n := mat.Dims()
+
+    &lt;span style=&#34;color: #008000&#34;&gt;// simply capture term weights as an array&lt;/span&gt;
+    t.weights = make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+        df := 0
+        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+            &lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+                df++
+            }
+        }
+        idf := math.Log(float64(1+n) / float64(1+df))
+        t.weights[i] = idf
+    }
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+    m, n := mat.Dims()
+    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    &lt;span style=&#34;color: #008000&#34;&gt;// iterate over every element of the matrix in turn and &lt;/span&gt;
+    &lt;span style=&#34;color: #008000&#34;&gt;// multiply the element value by the corresponding term weight&lt;/span&gt;
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+            product.Set(i, j, mat.At(i, j) * t.weights[i])
+        }
+    }
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This second approach would be considerably more memory efficient but I had some concerns over performance, specifically how well iterating over every matrix element, using nested loops, outside of the heavily optimised LAPACK/BLAS libraries would perform.&lt;/p&gt;
+
+&lt;p&gt;Then I found a matrix &lt;code&gt;Apply()&lt;/code&gt; method within the gonum/mat64 library that would apply a function to every element within the matrix.  Unlike the nested loop approach, this would allow the optimised LAPACK/BLAS libraries to handle the iteration so should theoretically be more performant.  This implementation would be identical to the &lt;code&gt;TfidfTransformer2&lt;/code&gt; above save for the &lt;code&gt;Transform()&lt;/code&gt; method where the matrix &lt;code&gt;Apply()&lt;/code&gt; method is used instead of nested loops.  The differing &lt;code&gt;Transform()&lt;/code&gt; method is shown below.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+    m, n := mat.Dims()
+    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    &lt;span style=&#34;color: #008000&#34;&gt;// apply a function to every element of the matrix in turn which&lt;/span&gt;
+    &lt;span style=&#34;color: #008000&#34;&gt;// multiplies the element value by the corresponding term weight&lt;/span&gt;
+    product.Apply(&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(i, j &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, v &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt; {
+        &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; (v * t.weights[i])
+    }, mat)
+
+    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;benchmarks&#34;&gt;Benchmarks&lt;/h3&gt;
+
+&lt;p&gt;To confirm our hypothesis that the new implementations will outperform the current matrix transform based implementation we will run some benchmarks using the inbuilt benchmark functionality inside Go&amp;rsquo;s &lt;code&gt;testing&lt;/code&gt; package.&lt;/p&gt;
+
+&lt;p&gt;Implementing a benchmark in Go is much the same as implementing a test except the function name is prefixed with &lt;code&gt;Benchmark&lt;/code&gt; rather than &lt;code&gt;Test&lt;/code&gt;.  Here are separate benchmark implementations for the &lt;code&gt;Fit()&lt;/code&gt;, &lt;code&gt;Transform()&lt;/code&gt; and &lt;code&gt;FitTransform()&lt;/code&gt; methods exercised for each of the 3 algorithm implementations.  As the &lt;code&gt;Fit()&lt;/code&gt; method is identical between implementation 2 (TfidfTransformer2) and 3 (TfidfTransformer3) I have not bothered to benchmark both instead just benchmarking the &lt;code&gt;Fit()&lt;/code&gt; method from implementation 2.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkFit(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
+    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    b.ResetTimer()
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+        t.Fit(mat)
+    }
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkFitTransform(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
+    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+
+    b.ResetTimer()
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+        t.FitTransform(mat)
+    }
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkTransform(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
+    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+    t.Fit(mat)
+
+    b.ResetTimer()
+    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+        t.Transform(mat)
+    }
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1Fit30000x3000(b *testing.B) {
+    benchmarkFit(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2Fit30000x3000(b *testing.B) {
+    benchmarkFit(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF3Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;amp;TfidfTransformer3{}, 30000, 3000, b)
+}
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF3FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;amp;TfidfTransformer3{}, 30000, 3000, b)
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The benchmarks are run in the same way as tests except that the &lt;code&gt;-bench&lt;/code&gt; option is used to express a regular expression matching the names of benchmark functions to run.  The regular expression &lt;code&gt;.&lt;/code&gt; will match all benchmarks or as in the output below, &lt;code&gt;30000&lt;/code&gt; will match and run all benchmarks with 30000 in the function name.  The &lt;code&gt;-benchmem&lt;/code&gt; option will output memory allocations during the benchmark.  Here are the results of the benchmarks.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ go test -bench=30000 -benchmem
+BenchmarkTFIDF1Fit30000x3000-4              1  6025208569 ns/op     7200006208 B/op     2 allocs/op
+BenchmarkTFIDF1Transform30000x3000-4        1  41773814068 ns/op    720005856 B/op      18 allocs/op
+BenchmarkTFIDF1FitTransform30000x3000-4     1  50079258438 ns/op    7920011056 B/op     11 allocs/op
+BenchmarkTFIDF2Fit30000x3000-4              3  513875302 ns/op      245760 B/op         1 allocs/op
+BenchmarkTFIDF2Transform30000x3000-4        1  1669005488 ns/op     720003136 B/op      2 allocs/op
+BenchmarkTFIDF2FitTransform30000x3000-4     1  1472562820 ns/op     720250752 B/op      6 allocs/op
+BenchmarkTFIDF3Transform30000x3000-4        2  884655455 ns/op      720003136 B/op      2 allocs/op
+BenchmarkTFIDF3FitTransform30000x3000-4     1  1029592374 ns/op     720248896 B/op      3 allocs/op
+PASS
+ok      github.com/james-bowman/nlpbench    121.167s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;From the benchmark results, we can see that as we expected, the &lt;code&gt;Fit()&lt;/code&gt; method on the original implementation is allocating around 7 GB of memory (first row).  In comparison we can see that the new array based &lt;code&gt;Fit()&lt;/code&gt; implementation is allocating around 250 KB.  This is a significant improvement, but how does the performance stack up?&lt;/p&gt;
+
+&lt;p&gt;According to the benchmark, the original implementation took 41773814068 nano seconds to perform the transform (second row).  Comparing this with 1669005488 nano seconds for the second nested loop based implementation (TfidfTransformer2 - row 5) would suggest the nested loop implementation is around 20 times faster.  If we further compare the third implementation (TfidfTransformer3), using the &lt;code&gt;Apply()&lt;/code&gt; method and delegating the iteration over matrix elements down into the optimised LAPACK/BLAS libraries (row 7) we can see this is about twice as fast as the second implementation executing in around half the time.  As we would expect,memory usage is the same for both implementation 2 and 3.&lt;/p&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping up&lt;/h2&gt;
+
+&lt;p&gt;We started using a standard implementation of the TF-IDF algorithm (albeit using a Dense matrix implementation) and explored possible optimisations for memory usage.  We looked at 2 alternative methods and then tested our hypothesis using Go&amp;rsquo;s inbuilt benchmark functionality.  The results showed that our optimisations materially improved not just memory consumption but also performance.  For a dataset with 30,000 terms across 3,000 documents, we showed the original implementation executed in around 41 seconds, consuming around 7 GB.  The new implementation processes the same dataset in just 0.8 seconds, consuming around 250 KB of memory.&lt;/p&gt;
+
+&lt;p&gt;All &lt;a href=&#34;http://github.com/james-bowman/nlpbench&#34;&gt;the Golang benchmarking code used in this article is on Github&lt;/a&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Semantic analysis of webpages with machine learning in Go</title>
+      <link>http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/</link>
+      <pubDate>Tue, 07 Mar 2017 13:55:54 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/</guid>
+      <description>
+
+&lt;p&gt;I spend a lot of time reading articles on the internet and started wondering whether I could develop software to automatically discover and recommend articles relevant to my interests.  There are various aspects to this problem but I have decided to concentrate first on the core part of the problem: the analysis and classification of the articles.&lt;/p&gt;
+
+&lt;p&gt;To illustrate the problem, lets consider the following string representing an article for the purpose of this example.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;quot;the cunning creature ran around the canine&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We will attempt to use this article as a query to find similar or related articles from the following set of strings (usually referred to as a &amp;lsquo;corpus&amp;rsquo;), where each string also represents an article.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;quot;The quick brown fox jumped over the lazy dog&amp;quot;
+&amp;quot;hey diddle diddle, the cat and the fiddle&amp;quot;
+&amp;quot;the fast cunning brown fox liked the slow canine dog &amp;quot;
+&amp;quot;the little dog laughed to see such fun&amp;quot;
+&amp;quot;and the dish ran away with the spoon&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The approaches we will consider for this example will work with any type of query equally whether the query is itself an article as above or simply a short string of words.  The &lt;a href=&#34;https://github.com/james-bowman/nlp&#34;&gt;code used in this example is on Github&lt;/a&gt; and &lt;a href=&#34;#go-implement-it-pun-intended&#34;&gt;code demoing its use is included at the end of this blog post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;term-frequency&#34;&gt;Term Frequency&lt;/h2&gt;
+
+&lt;p&gt;One common approach is to capture the frequency with which each word (referred to as &amp;lsquo;term&amp;rsquo;) appears in each article (referred to as &amp;lsquo;document&amp;rsquo;), modelling each document as a numerical vector of term frequencies.  The result is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Document-term_matrix&#34;&gt;term document matrix&lt;/a&gt; where each element &lt;em&gt;td&lt;sub&gt;i, j&lt;/sub&gt;&lt;/em&gt; represents the frequency with which the corresponding term &lt;em&gt;t&lt;sub&gt;i&lt;/sub&gt;&lt;/em&gt; appears within the associated document &lt;em&gt;d&lt;sub&gt;j&lt;/sub&gt;&lt;/em&gt;.  This is illustrated in the term document matrix below, constructed from our example corpus of articles.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/tf.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/tf.jpeg&#34; alt=&#34;Term Document Matrix showing frequency of term occurance across document corpus&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Values of 0 within the matrix, representing no occurances, have been shown as blank cells to aid readability.  The column shown on the right of the matrix represents the article we are using as a query, included for comparison purposes.&lt;/p&gt;
+
+&lt;p&gt;It should be clear that that this matrix does not capture the sequence or proximity of words but rather simply their frequency regardless of where they appear in each document.  A casual inspection of the values in the matrix should reveal that the third article &lt;code&gt;the fast cunning brown fox liked the slow canine dog&lt;/code&gt; is the best match for our query having the most terms in common.  This similarity can be confirmed by comparing the &lt;a href=&#34;https://en.wikipedia.org/wiki/Cosine_similarity&#34;&gt;cosine similarity&lt;/a&gt; of each document in our corpus against the query.&lt;/p&gt;
+
+&lt;p&gt;Cosine similarity is a mathmatical measure of similarity between 2 numerical vectors that essentially calculates the difference between their angles.  For a more in depth &lt;a href=&#34;http://blog.christianperone.com/2013/09/machine-learning-cosine-similarity-for-vector-space-models-part-iii/&#34;&gt;explanation of cosine similarity please refer to this article by Christian Perone&lt;/a&gt;.  The calculated cosine similiarities will range from 0 (representing complete orthogonality) and 1 (representing a perfect match) with a higher cosine similarity value indicating greater similarity.  Comparing our query with each of the document vectors yields the following results:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/tf-cosine.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/tf-cosine.jpeg&#34; alt=&#34;Cosine similarities between query and each document in corpus&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;These results confirm our observations that &lt;code&gt;the fast cunning brown fox liked the slow canine dog&lt;/code&gt; is indeed the closest match to our query.&lt;/p&gt;
+
+&lt;p&gt;Whilst this approach gave some success, there are a number of weaknesses.  Re-examining the term document matrix, we can see that the second document &lt;code&gt;hey diddle diddle, the cat and the fiddle&lt;/code&gt; had only one word in common with our query (&lt;code&gt;the&lt;/code&gt;) and yet it scored a cosine similarity of &lt;code&gt;0.436436&lt;/code&gt; because the word appeared twice in both the article and the query.  In comparison, the first article &lt;code&gt;The quick brown fox jumped over the lazy dog&lt;/code&gt; is semantically much more closely related to our query and yet it scores only a slightly higher cosine similarity.  We shall tackle both these problems but lets start with the first: how to remove bias caused by words that occur frequently across the corpus e.g. &lt;code&gt;the&lt;/code&gt;, &lt;code&gt;a&lt;/code&gt;, &lt;code&gt;and&lt;/code&gt;, etc.&lt;/p&gt;
+
+&lt;h2 id=&#34;tf-idf-term-frequency-inverse-document-frequency&#34;&gt;TF-IDF (Term Frequency - Inverse Document Frequency)&lt;/h2&gt;
+
+&lt;p&gt;One approach to solving this problem is to apply weightings to the term frequency values in the term document matrix.  Words that appear frequently across the corpus will be given less weight than uncommon words so that they match less strongly.  There are a number of formula available to do this, but one of the most common is &lt;a href=&#34;https://en.wikipedia.org/wiki/Tf%E2%80%93idf&#34;&gt;tf-idf&lt;/a&gt;.  In tf-idf, the inverse document frequency for each term is multiplied by the corresponding raw term frequency values in the matrix to yield a weighted tf-idf matrix.  The formula for calculating tf-idf is as follows:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf-formula.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf-formula.jpeg&#34; alt=&#34;tf-idf formula&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Where &lt;em&gt;df&lt;sub&gt;t&lt;/sub&gt;&lt;/em&gt; is the document frequency for a term i.e. the number of documents within which the term occurs and &lt;em&gt;n&lt;/em&gt; is the total number of documents within the corpus.  Both &lt;em&gt;df&lt;sub&gt;t&lt;/sub&gt;&lt;/em&gt; and &lt;em&gt;n&lt;/em&gt; are added to 1 to remove the risk of dividing by 0.  Using this formula, a term that appears in every document (e.g. &lt;code&gt;the&lt;/code&gt; in our example corpus above) will be weighted down to 0 effectively cancelling itself out.&lt;/p&gt;
+
+&lt;p&gt;So, lets review our term document matrix after applying the tf-idf transformation.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf.jpeg&#34; alt=&#34;Term document matrix of tf-idf values across example corpus&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;As theorised above, we can see that the word &lt;code&gt;the&lt;/code&gt; has been cancelled out entirely, now scored as 0 in the term document matrix.  Obviously, any transformation we apply to the documents within the corpus should also be applied to the query so that we are comparing like for like.&lt;/p&gt;
+
+&lt;p&gt;Now, lets see what effect the tf-idf transformation has had on our cosine similarity scores.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf-cosine.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/tfidf-cosine.jpeg&#34; alt=&#34;Cosine similarities between query and each document in corpus after tf-idf transforms&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Looking at the new cosine similarity values we can see that only articles sharing words in common with our query are scoring non-zero cosine similarity.  The tf-idf transformation removed the noise caused by commonly occuring words and has given us much cleaner and more marked results.&lt;/p&gt;
+
+&lt;h2 id=&#34;latent-semantic-analysis&#34;&gt;Latent Semantic Analysis&lt;/h2&gt;
+
+&lt;p&gt;Whilst we are now getting clean similarity scores based on word occurance, we are still not matching semantically similar documents.  For example, the first document &lt;code&gt;The quick brown fox jumped over the lazy dog&lt;/code&gt; is semantically similar to our query - they are both about foxes and dogs.  However, following tf-idf, this document now scores a cosine similarity of 0 because they have no words in common (beyond the word &lt;code&gt;the&lt;/code&gt; which we weighted down by applying the tf-idf transform).  So, how do we extract the semantic meaning hidden behind the term frequencies within the model?  Enter Latent Semantic Analysis!&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Latent_semantic_analysis&#34;&gt;Latent Semantic Analysis (LSA) or Latent Semantic Indexing (LSI)&lt;/a&gt;, as it is sometimes called in relation to information retrieval and searching, surfaces hidden semantic attributes within the corpus based upon the co-occurance of terms.  It assumes that words that frequently occur together do so because they are semantically related to the same topic, concept or meaning.  This is particularly important when analysing different words that mean the same thing, referred to as &lt;em&gt;synonymy&lt;/em&gt; in natural language processing and allows documents to be considered similar even when they might not necessarily share any terms in common.&lt;/p&gt;
+
+&lt;p&gt;Latent Semantic Analysis relies on a mathematical process called &lt;a href=&#34;https://en.wikipedia.org/wiki/Singular_value_decomposition#Reduced_SVDs&#34;&gt;truncated Singular Value Decomposition (SVD)&lt;/a&gt; to reduce the dimensionality of the term document matrix.  Truncated SVD yields a new matrix that is the closest approximation to the original matrix within a significantly reduced dimensional space.  For a more in depth explanation of the mathematics involed or internal workings of SVD please refer to the &lt;a href=&#34;https://github.com/james-bowman/nlp/blob/master/dimreduction.go&#34;&gt;Golang code using SVD here&lt;/a&gt; and/or the &lt;a href=&#34;#references&#34;&gt;material referenced at the end of the article&lt;/a&gt;. There are a number of advantages to the reduced dimensions as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;The reduced dimensions should theoretically require less memory to store&lt;/li&gt;
+&lt;li&gt;The act of truncating the least significant dimensions can reduce noise in the data leading to cleaner results&lt;/li&gt;
+&lt;li&gt;Representing the document feature vectors in reduced dimensional space encodes co-occurance of terms and the hidden semantic meaning allowing matches between similar documents even with no terms in common.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;For the purposes of this example, I shall project the tf-idf term document matrix into 2 dimensions as the initial dimensionality is relatively low anyway and 2 dimensions lends itself to visualisation (as we will see later).  Usually in LSA, a value around 100 tends to yield the best results &lt;sup&gt;&lt;a href=&#34;http://people.ischool.berkeley.edu/~rosario/projects/LSI.pdf&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;.  Lets take a look at our matrix of feature vectors following SVD.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/lsi.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/lsi.jpeg&#34; alt=&#34;Feature vectors for articles following Singular Value Decomposition&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;It should be clear that where we previously had a row for every term within the matrix, we now have only 2 dimensions to the matrix which represent the 2 dimensions of largest variation amongst the documents.  As before, we must also project the query into the same dimensional space as the documents before we can compare them for similarity.&lt;/p&gt;
+
+&lt;p&gt;As the documents are now represented in 2 dimensions, it is possible to plot each document vector to help visualise clustering patterns in the documents.  Lets take a look.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/plot.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/plot.jpeg&#34; alt=&#34;Visualising the documents in 2 dimensional space&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;The saavy reader may have noticed that I have used logarithmic scales on both axis - this was to improve readability of the visualisation and make the angle between the query and other documents clearer.  Looking at the plot, we can see that the documents have formed into 2 main clusters in this dimensional space.  Those that are related to foxes and dogs, and those that are not.  We can also see that the query is closer in angle (measured by a line from the origin to the point marked in the plot) to the cluster of documents relating to foxes and dogs which is exactly as it should be.  Lets check the cosine similarities of the query with the document vectors in this dimensional space to check we are correct.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/semanticanalysis/lsi-cosine.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/semanticanalysis/lsi-cosine.jpeg&#34; alt=&#34;Cosine similarities between query and each document in corpus after SVD factorisation&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;The cosine similarity scores support our observations from the plot.  We can also see that our query &lt;code&gt;&amp;quot;the cunning creature ran around the canine&amp;quot;&lt;/code&gt; strongly matches the document &lt;code&gt;&amp;quot;The quick brown fox jumped over the lazy dog&amp;quot;&lt;/code&gt; even though they share no terms in common.  The LSA has successfully resolved that they are both semantically related to foxes and dogs.&lt;/p&gt;
+
+&lt;h2 id=&#34;go-implement-it-pun-intended&#34;&gt;Go implement it (pun intended)&lt;/h2&gt;
+
+&lt;p&gt;I have developed [Golang implementations for the machine learning algorithms described in this article and published them on Github][].  The implementations are based on papers and tutorials in the public domain and the structure of the code takes some inspiration from &lt;a href=&#34;http://scikit-learn.org/stable/&#34;&gt;Python&amp;rsquo;s scikit-learn&lt;/a&gt;.  Here is an example of how to use the library to output cosine similarities between the example query and document corpus used in this blog post following term frequency vectorisation, tf-idf transformation and SVD factorisation.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; main
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; (
+	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;fmt&amp;quot;&lt;/span&gt;
+
+	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;gonum.org/v1/gonum/mat&amp;quot;&lt;/span&gt;
+	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;github.com/james-bowman/nlp&amp;quot;&lt;/span&gt;
+)
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; main() {
+	testCorpus := []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;{
+		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;The quick brown fox jumped over the lazy dog&amp;quot;&lt;/span&gt;,
+		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;hey diddle diddle, the cat and the fiddle&amp;quot;&lt;/span&gt;,
+		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the fast cunning brown fox liked the slow canine dog &amp;quot;&lt;/span&gt;,
+		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the little dog laughed to see such fun&amp;quot;&lt;/span&gt;,
+		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;and the dish ran away with the spoon&amp;quot;&lt;/span&gt;,
+	}
+
+	query := &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the cunning creature ran around the canine&amp;quot;&lt;/span&gt;
+
+	vectoriser := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	transformer := nlp.NewTfidfTransformer()
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// set k (the number of dimensions following truncation) to 2&lt;/span&gt;
+	reducer := nlp.NewTruncatedSVD(2)
+
+	&lt;span style=&#34;color: #008000&#34;&gt;// Fit and Transform the corpus into a term document matrix fitting the &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// model to the documents in the process&lt;/span&gt;
+	matrix, _ := vectoriser.FitTransform(testCorpus...)
+	&lt;span style=&#34;color: #008000&#34;&gt;// transform the query into the same dimensional space - any terms in &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// the query not in the original training data the model was fitted to &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// will be ignored&lt;/span&gt;
+	queryMat, _ := vectoriser.Transform(query)
+	calcCosine(queryMat, matrix, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Raw TF&amp;quot;&lt;/span&gt;)
+
+	tfidfmat, _ := transformer.FitTransform(matrix)
+	tfidfquery, _ := transformer.Transform(queryMat)
+	calcCosine(tfidfquery, tfidfmat, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;TF-IDF&amp;quot;&lt;/span&gt;)
+
+	lsi, _ := reducer.FitTransform(tfidfmat)
+	queryVector, _ := reducer.Transform(tfidfquery)
+	calcCosine(queryVector, lsi, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;LSA&amp;quot;&lt;/span&gt;)
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) {
+	&lt;span style=&#34;color: #008000&#34;&gt;// iterate over document feature vectors (columns) in the LSI and &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// compare with the query vector for similarity.  Similarity is determined &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// by the difference between the angles of the vectors known as the cosine &lt;/span&gt;
+	&lt;span style=&#34;color: #008000&#34;&gt;// similarity&lt;/span&gt;
+	_, docs := tdmat.Dims()
+
+	fmt.Printf(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Comparing based on %s\n&amp;quot;&lt;/span&gt;, name)
+
+	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; docs; i++ {
+		queryVec := query.(mat.ColViewer).ColView(0)
+		docVec := tdmat.(mat.ColViewer).ColView(i)
+		similarity := nlp.CosineSimilarity(queryVec, docVec)
+		fmt.Printf(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Comparing &amp;#39;%s&amp;#39; = %f\n&amp;quot;&lt;/span&gt;, corpus[i], similarity)
+	}
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping up&lt;/h2&gt;
+
+&lt;p&gt;We have looked at a number of ways to model text documents to support information retrieval each one building on the next.  We started with modelling documents as feature vectors of raw term frequencies which we then extended with tf-idf weighting.  We used tf-idf to weight the term frequencies according to how frequently the terms appeared across all the documents in the corpus thereby removing bias caused by commonly occuring words.  Finally we extended the model with Latent Semantic Analysis, applying Singular Value Decomposition to surface semantic meaning hidden beneath the term frequencies within the document feature vectors.&lt;/p&gt;
+
+&lt;p&gt;I have really learnt a lot while implementing these algorithms both about machine learning concepts (and the requisite mathematics) and their applications.  There are a number of extensions to &lt;a href=&#34;https://github.com/james-bowman/nlp&#34;&gt;the library&lt;/a&gt; that I intend to make both to extend my knowledge but also its usefulness including an implementation of &lt;a href=&#34;https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation&#34;&gt;LDA (Latent Dirichlet Allocation)&lt;/a&gt; for effective topic extraction from the documents and possibly also implementations of clustering and classification algorithms like k-means, etc.&lt;/p&gt;
+
+&lt;p&gt;If you have any experiences with using any of the algorithms I have described here or others that are related then please share your experiences in the comments section below.&lt;/p&gt;
+
+&lt;h2 id=&#34;references&#34;&gt;References&lt;/h2&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Latent_semantic_analysis&#34;&gt;Wikipedia&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://people.ischool.berkeley.edu/~rosario/projects/LSI.pdf&#34;&gt;Rosario, Barbara. Latent Semantic Indexing: An overview. INFOSYS 240 Spring 2000&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.scholarpedia.org/article/Latent_semantic_analysis&#34;&gt;Latent Semantic Analysis, a scholarpedia article on LSA written by Tom Landauer, one of the creators of LSA.&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://webhome.cs.uvic.ca/~thomo/svd.pdf&#34;&gt;Thomo, Alex. Latent Semantic Analysis (Tutorial).&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://nlp.stanford.edu/IR-book/html/htmledition/latent-semantic-indexing-1.html&#34;&gt;Latent Semantic Indexing. Standford NLP Course&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Continuous delivery tool landscape</title>
+      <link>http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/</link>
+      <pubDate>Mon, 30 Jan 2017 08:34:52 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/</guid>
+      <description>
+
+&lt;p&gt;I have been having a lot of discussions recently about tooling to support continuous delivery and DevOps practices.  There is an incredible and ever increasing array of tools available for these practices.  Whilst a number of vendors have developed &lt;a href=&#34;https://dzone.com/articles/continuous-delivery-anti-patterns&#34;&gt;one-stop solutions or suites of integrated tools&lt;/a&gt;, many of the tools in the space tend to be tightly focused on addressing a particular problem.&lt;/p&gt;
+
+&lt;p&gt;Unfortunatley this can be confusing and overwhelming, especially to people starting out, making it difficult to know where to start and which tools to consider.  This can also lead to particular tools being used to solve problems where other types of tools may be better suited.  It is therefore important to consider tools within the context of the broader ecosystem and understand the role each one plays and the specific goal or problem(s) they aim to address.  With this in mind, I thought it might be useful to visualise the broader CD/DevOps tool landscape to provide some context around the available tools and how they each fit within it.&lt;/p&gt;
+
+&lt;p&gt;You can see the complete visualisation here:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/cdlandscape/ContinuousDeliveryToolLandscape-fullsize.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg&#34; alt=&#34;Continuous delivery tool landscape Jan 2017&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;I divided the landscape up into 5 high-level phases broadly aligned to a generic application lifecycle: Collaborate, Build, Test, Deploy and Run.  Within each phase, I then attempted to categorise the types of tools available.  Some tools within the same category address slightly different problems and can be considered complimentary to one another e.g. Terraform and Puppet/Chef.  Conversely, some of the tools e.g. MS Team Foundation Server, Go CD, Docker, etc. could appear in multiple categories.  Where this is the case, I have tried to place them once, in the primary category for which they are known.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-is-not-covered&#34;&gt;What is not covered&lt;/h2&gt;
+
+&lt;p&gt;Whilst it would be great to show the entire landscape on one page some compromises had to be made and so some categories of tools were omitted.  These include:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Service Discovery and global Configuration stores e.g. Consul, ZooKeeper, etcd, etc.&lt;/li&gt;
+&lt;li&gt;Security management and monitoring tools (Privileged Account Management, intrusion detection, secret management and certificate management) e.g. CyberArk, Snort, Tripwire, Fortify, Vault, Let’s Encrypt, etc.&lt;/li&gt;
+&lt;li&gt;Static code analysis tools i.e. cyclometric complexity, coverage, quality, standards, etc.&lt;/li&gt;
+&lt;li&gt;Programming languages, tools and frameworks e.g. compilers, IDEs, Frameworks like DropWizard/Nancy/etc.&lt;/li&gt;
+&lt;li&gt;Mocking tools for testing e.g. Mockito&lt;/li&gt;
+&lt;li&gt;Quality Management tools e.g. HPE QC&lt;/li&gt;
+&lt;li&gt;Release Management tools e.g. LaunchDarkly&lt;/li&gt;
+&lt;li&gt;Cloud vendor specific tools &amp;amp; toolchains e.g. Cloudformation and CodeDeploy for AWS&lt;/li&gt;
+&lt;li&gt;Platform/Device specific development toolchains e.g. Native mobile apps, IoT, etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;wrap-up&#34;&gt;Wrap up&lt;/h2&gt;
+
+&lt;p&gt;The visualisation is not intended to be exhaustive or represent any form of recommendation or endorsement.  It would be interesting to hear other people&amp;rsquo;s perspectives and experiences.  Have you used other tools that belong in this visualisation?  Does the visualisation resonate with your own experiences and have you used some of the tools shown?  Are there any categories you feel missing?  If so, please comment and share your thoughts and experiences.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Using data to identify the impact of Southern Rail industrial action</title>
+      <link>http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/</link>
+      <pubDate>Tue, 10 Jan 2017 15:17:18 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/</guid>
+      <description>&lt;p&gt;I, like many others, have been affected by the ongoing industrial dispute over Driver Only Operation (DOO) on Southern Railways.  On some days this amounts to delayed or cancelled trains with extended journey times and the inconvenience of standing all the way into London and on others, like today, strikes leave no viable way of getting to work in London at all.&lt;/p&gt;
+
+&lt;p&gt;There have been many attempts to measure and demonstrate the impact of the industrial action such as the use of the &lt;a href=&#34;https://twitter.com/hashtag/todayimissed&#34;&gt;#todayimissed&lt;/a&gt; hashtag on Twitter (see below), &lt;a href=&#34;http://www.huffingtonpost.co.uk/entry/southern-rail-strike-survey_uk_58691a0ee4b0f24da6e921bb&#34;&gt;a recent passenger survey&lt;/a&gt; conducted by The Association of British Commuters and even a tongue-in-cheek &lt;a href=&#34;http://www.bbc.co.uk/news/uk-england-36825721&#34;&gt;video game&lt;/a&gt;.  Whilst certainly compelling, these have all largely been qualitative rather than quantitative.  I have heard tales of people losing or missing out on jobs due to continued lateness or based on where they live and, more recently, quite a lot of people moving job or house so they avoid Southern Rail for their commute to/from work.  This got me thinking and I started to wonder whether there was any correlation between the industrial action and property prices in the affected areas.&lt;/p&gt;
+
+&lt;blockquote class=&#34;twitter-tweet&#34;&gt;&lt;p lang=&#34;en&#34; dir=&#34;ltr&#34;&gt;&lt;a href=&#34;https://twitter.com/hashtag/todayimissed?src=hash&amp;amp;ref_src=twsrc%5Etfw&#34;&gt;#todayimissed&lt;/a&gt; saying goodnight to my children again &lt;a href=&#34;https://twitter.com/hashtag/southernfail?src=hash&amp;amp;ref_src=twsrc%5Etfw&#34;&gt;#southernfail&lt;/a&gt; &lt;a href=&#34;https://t.co/hI1dCjLRid&#34;&gt;pic.twitter.com/hI1dCjLRid&lt;/a&gt;&lt;/p&gt;&amp;mdash; James Bowman (@JameseBowman) &lt;a href=&#34;https://twitter.com/JameseBowman/status/778504806264672256?ref_src=twsrc%5Etfw&#34;&gt;September 21, 2016&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src=&#34;https://platform.twitter.com/widgets.js&#34; charset=&#34;utf-8&#34;&gt;&lt;/script&gt;
+
+
+&lt;p&gt;In recent years, the UK government has started publishing lots of their data, making it freely available to the public and developers to use for third-party applications.  I visited &lt;a href=&#34;https://www.gov.uk/government/statistical-data-sets/uk-house-price-index-data-downloads-october-2016&#34;&gt;www.gov.uk&lt;/a&gt; and found the UK Land Registry data for house prices available for download as a &lt;a href=&#34;https://en.wikipedia.org/wiki/Comma-separated_values&#34;&gt;CSV&lt;/a&gt; file.  This data set gives us the monthly average price of completed property transactions for each local authority.  Unfortunately, this is a &amp;lsquo;trailing&amp;rsquo; indicator as most property transactions take months to complete but it is a good place to start.  The data is currently only available up until October 2016 with further data added each month (November&amp;rsquo;s data will be available later this month on the 17th January, December&amp;rsquo;s in February, etc.).&lt;/p&gt;
+
+&lt;p&gt;After downloading the Land Registry data and some &lt;a href=&#34;https://github.com/james-bowman/southerntrains&#34;&gt;basic manipulation&lt;/a&gt; in &lt;a href=&#34;https://www.r-project.org/about.html&#34;&gt;R&lt;/a&gt; we can visualise the geographical distribution of property prices (transactions) across Great Britan (as at October 2016) using &lt;a href=&#34;http://www.openheatmap.com/&#34;&gt;OpenHeatMap&lt;/a&gt;.  In this heatmap, shown below, the darker areas correspond to higher average property prices in transactions during October and conversely, lighter areas correspond to lower average prices.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/southernrail/uk-house-prices-10-2016.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/southernrail/uk-house-prices-10-2016.png&#34; alt=&#34;UK House Prices 10/2016&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;We can see from the visualisation that the average house price in and around London is higher than other parts of Britan.  As Southern Rail extends into London it seems likely the average property price in the area served by Southern Rail will be higher than the national average.  For our analysis, using the trend of house price movements over time will be more useful than absolute values.&lt;/p&gt;
+
+&lt;p&gt;Now we have the property prices by area, we need a way of comparing the nationwide prices with those for the area affected by the Southern Rail dispute.  We need to define the affected area or, perhaps more specifically, the local authorities which include train stations served by Southern Rail.  Hunting around the internet I struggled to find useable data on train routes or schedules until I stumbled across the data I needed on Wikipedia.  Unlike most other sources I found, Wikipedia lists the stations served by each train operating company, rather than just the stations they operate.  This is important, because Southern Rail trains serve a number of stations operated by London Underground and other operating companies.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/southernrail/wikipedia-screen-shot.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/southernrail/wikipedia-screen-shot.png&#34; alt=&#34;Infobox Vcard data for each train station on Wikipedia (screenshot from Wikipedia)&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Wikipedia has a page for each station which contains relevant detail in the infobox vcard on the right (shown in the screen shot above) including the local authority that we can use to cross reference the Land Registry house price data.  I did not fancy manually trawling wikipedia for the ~200 stations served by Southern so I wrote a simple &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt; program to crawl Wikipedia and scrape the data I needed.&lt;/p&gt;
+
+&lt;p&gt;The result was a complete list of stations served by Southern and the associated local authority within which they reside.  The area covered by these local authorities is shown in the map below.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/southernrail/area-served-by-southern.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/southernrail/area-served-by-southern.png&#34; alt=&#34;Area Served by Southern Rail (sourced from Wikipedia)&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Unfortunately, there were a lot of inconsistencies in the data scraped from Wikipedia.  Some of the Local Authority names did not match those used in the Land Registry data and were even inconsistent within Wikipedia between pages e.g. &lt;code&gt;Ashford&lt;/code&gt; and &lt;code&gt;Borough of Ashford&lt;/code&gt;, &lt;code&gt;Brighton and Hove&lt;/code&gt; and &lt;code&gt;Brighton &amp;amp; Hove&lt;/code&gt;, etc.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/southernrail/data-inconsistencies.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/southernrail/data-inconsistencies.png&#34; alt=&#34;Inconsistencies in data scraped from Wikipedia&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;Some basic string manipulation in our &lt;a href=&#34;https://github.com/james-bowman/southerntrains&#34;&gt;R script&lt;/a&gt; allows us to clean up the wikipedia data and remove any inconsistencies.  Once all of the inconsistencies have been removed and we are satisfied that every Local Authority in the stations dataset references a valid Local Authority from the Land Registry data, we are ready to cross reference the 2 data sets and visualise the results.  I have plotted the average property prices by transaction since January 2016 up to and including October 2016 across local authorities served by Southern Rail and across Great Britan as a whole as a comparison.  The resulting plot is shown below.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/southernrail/prices.png&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/southernrail/prices.png&#34; alt=&#34;Comparison of average house prices nationwide and in Southern Rail Area&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;It is clear that, as we predicted, the average price for the area served by Southern Rail is higher than the national average.  The two lines track almost identically except that in October, whilst the national average price continues to rise (albeit slightly), the prices in the area served by Southern Rail decline.  To be specific, the decline in average property price transactions across the Southern Rail area between September and October in 2016 is £2446.66 or approximately 0.6%.&lt;/p&gt;
+
+&lt;p&gt;As with any results, these are open to interpretation and we must consider that this is only a single data point and a trend usually requires at least 3.  Furthermore, we could argue that although the dispute has been going on since around April time, it is still too soon to see any impact manifest in property transactions (as it is a trailing indicator and we only have house price data up until October).  This analysis assumes equal exposure to impact from train disruption across all local authorities but in practice, some local authorities will be more deeply affected than others with different percentages of the population relying on the trains.  Considering census data on how people travel to work could be a future enhancement.  Additionally, people residing outside the Southern area, but who drive to Southern train stations to catch trains are not accounted for in this analysis.  Finally, and perhaps most importantly, we have identified a &lt;a href=&#34;https://xkcd.com/552/&#34;&gt;correlation and not necessarily a causation&lt;/a&gt; - any change observed in property prices is not necessarily as a direct result of the industrial action.&lt;/p&gt;
+
+&lt;p&gt;Whilst it is perhaps still too early to draw conclusions, I have enjoyed working with the data and will be interested to see what happens in the coming months as more data becomes available.  The code used to process, cleanse, analyse and visualise the data is available on Github &lt;a href=&#34;https://github.com/james-bowman/southerntrains&#34;&gt;here&lt;/a&gt;.  I hope you have found my experiences interesting, please share your own experiences or thoughts in the comments section below.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Standardisation in the Enterprise</title>
+      <link>http://www.jamesbowman.me/post/standardisation-in-the-enterprise/</link>
+      <pubDate>Tue, 09 Feb 2016 07:49:02 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/standardisation-in-the-enterprise/</guid>
+      <description>
+
+&lt;p&gt;In enterprises there is often a strong desire to standardise.  The reasoning is simple: if we are all doing things the same way, using the same technology, then we can simplify our operations, benefit from economies of scale and make our people more fungible.  So by extension, not standardising means duplicated effort, resources and expenditure.  But are things really this clear cut?&lt;/p&gt;
+
+&lt;p&gt;Perhaps we should begin by thinking about the meaning of the word standardisation and understanding the alternatives.  &lt;a href=&#34;https://en.wikipedia.org/wiki/Standardization&#34;&gt;Wikipedia defines standardisation&lt;/a&gt; as:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Standardization or standardisation is the process of implementing and developing technical standards. Standardization can help to maximize compatibility, interoperability, safety, repeatability, or quality. It can also facilitate commoditization of formerly custom processes.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;As an interesting aside, there is no mention of &lt;em&gt;uniformity&lt;/em&gt; in this definition even though the two terms are frequently used synonomously in many enterprises.  Standardisation is often interpreted as application standardisation - normalising and consolidating to uniform, and often centralised, applications and tools.  However, it is important to note there are other types of standards beyond applications - more on these later.&lt;/p&gt;
+
+&lt;p&gt;Most Thesaurus&amp;rsquo; would say the opposite of the word standardisation is &lt;em&gt;deviation&lt;/em&gt; which conjours up all sorts of negative conotations.  I would argue that more accurate words to describe the opposite of standardisation, in this context, are &lt;em&gt;diversification&lt;/em&gt; and &lt;em&gt;customisation&lt;/em&gt;.  And, unlike &lt;em&gt;deviation&lt;/em&gt;, it turns out there are many benefits to diversification and customisation:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Lower risk&lt;/strong&gt; - reduced exposure to a single key technology, application or supplier&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Increased responsiveness and agility&lt;/strong&gt; - greater autonomy with fewer dependencies and lower impact of change&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Potentially increased productivity and/or revenue&lt;/strong&gt; - tailoring of experience, applications, practices and processes to best suit territories, teams and customers involved&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So it seems that both approaches (standardisation and customisation/diversification) have their own, albeit different, sets of benefits and drivers.  Standardisation is often bourne out of attempts to optimise the bottom line (costs) where as diversification and customisation tend to come about when optimising the top line (revenue).  Of course in reality, things are much more complicated.&lt;/p&gt;
+
+
+
+
+
+
+
+
+
+
+&lt;blockquote&gt;
+&lt;a class=&#34;bloglogo&#34; href=&#34;#&#34; onclick=&#34;window.open(&#39;https://twitter.com/intent/tweet?text=%27Trying+to+reduce+costs+through+standardisation+often+simply+pushes+the+costs+elsewhere.%27+-+http%3A%2F%2Fwww.jamesbowman.me%2Fpost%2Fstandardisation-in-the-enterprise%2F%3Futm_source%3Dtwitter.com%26utm_campaign%3Dclicktotweet%26utm_medium%3Dsocial+by+%40jamesebowman&#39;, &#39;_blank&#39;, &#39;width=500,height=350&#39;); return false;&#34; style=&#34;text-decoration:none;&#34;&gt;
+&lt;p&gt;Trying to reduce costs through standardisation often simply pushes the costs elsewhere.&lt;/p&gt;
+&lt;span style=&#34;color:#00aced;&#34;&gt;&lt;span class=&#34;icon-twitter&#34; style=&#34;font-size:1.5em;&#34;&gt;&lt;/span&gt; Tweet this&lt;/span&gt;&lt;/a&gt;
+&lt;/blockquote&gt;
+
+
+
+&lt;p&gt;Trying to reduce costs through standardisation often simply pushes the costs elsewhere.  For example, consider an organisation comprising 5 separate business units.  Each business unit does similar things but is discreet, perhaps because they are based in different territories or perhaps because they were formerly part of other companies that were acquired.  Each business unit have their own application(s) supporting their own processes, product sets and data structures.  As part of any attempt to consolidate the 5 software applications into one standardised application the organisation must either:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;Force all business units to adopt the same uniform, and potentially sub-optimal, business processes, product sets and data structures that will be, by definition, a compromise.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;or&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Deal with the complexity and costs of supporting the 5 divergent business processes, product sets and data structures within a single application.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Neither of these options is particular appealing and may ironically cause an increase in cost rather than the desired reduction.  Furthermore, any changes to the application for a particular business unit must now be funneled along with all the changes for the 4 other business units and their impact considered for all 5 business units.  This will result in higher costs and significantly increased lead times for changes.&lt;/p&gt;
+
+&lt;p&gt;This phenomonon is often explained using an adage called &lt;a href=&#34;https://en.wikipedia.org/wiki/Conway%27s_law&#34;&gt;Conway&amp;rsquo;s Law&lt;/a&gt;.  It states that:&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;Any organisation that designs a system (defined more broadly here than just information systems) will inevitably produce a design whose structure is a copy of the organization&amp;rsquo;s communication structure.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;The adage illustrates the importance of considering the organisational structure and business processes alongside software applications.  If we attempt to consolidate systems without considering the teams using them we can create misalignment between the organisational structure and systems and incur significant costs as a result.  Clearly, in our increasingly competitive market environments, where businesses are trying to accelerate the development and rollout of new products and services, such costs and delays could lead to missed opportunities.&lt;/p&gt;
+
+&lt;h2 id=&#34;platforms-the-best-of-both-worlds&#34;&gt;Platforms - the Best of Both Worlds?&lt;/h2&gt;
+
+&lt;p&gt;Applications have predefined business logic and data structures that narrow their scope and restrict their ability to support divergent business processes and product sets.  In contrast, platforms focus on the truly common, commodity capabilities and separate out the variable logic and data structures, allowing them to diverge.  Platforms strike a balance between standardising and diversifying/customising by splitting the problem domain into that which is truly common (the platform) and that which should be allowed to diverge (the customised items on top of the platform).  Interestingly, platforms are usually driven out of a desire to accelerate product development rather than control costs.&lt;/p&gt;
+
+&lt;p&gt;Platforms essentially represent a set of standards or constraints that all the things supported by the platform must conform to.  In return for conforming to these constraints, they are able to leverage all the facilities and capabilities offered by the supporting platform.  In principle, platforms could be built to support anything providing it conforms to the constraints imposed by the platform.  This could include applications, product sets or even business processes.&lt;/p&gt;
+
+&lt;p&gt;Platforms are typically successful when they meet the following 3 criteria:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;The platform is tightly focused and completely generalised with any variability pushed out into the items it supports.&lt;br /&gt;&lt;/li&gt;
+&lt;li&gt;There is a clear and explicit contract between the platform and the items it supports clearly defining the constraints/standards they must conform to.&lt;/li&gt;
+&lt;li&gt;The platform is mostly self-service, requiring minimal centralised administration or configuration.  This avoids hand-offs and bottlenecks with centralised teams.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;other-types-of-standards&#34;&gt;Other Types of Standards&lt;/h2&gt;
+
+&lt;p&gt;Earlier on, I mentioned that we would later be looking at other types of standard beyond application standardisation.  If we think back to the definition earlier in the article we see that many types of standards could help enterprises including (but not limited to):&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Standards that help us treat things in a consistent way allowing us to build tooling, platforms (see above) and scale operationally (e.g. deployment, hosting, monitoring, etc.)&lt;/li&gt;
+&lt;li&gt;Standards that help maximise compatibility and interoperability between software components, business units, etc.&lt;/li&gt;
+&lt;li&gt;Standards to promote safety and to keep our assets secure&lt;/li&gt;
+&lt;li&gt;Standards to ensure a high level of quality to limit our risk exposure and additional expenses&lt;/li&gt;
+&lt;li&gt;Standards that promote consistent user experience to optimise usability and profit&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Typically these types of standards are defined across the organisation and can help drive emergent behaviours.  These types of standards explicitly define the small set of things that must be consistent (to support tooling, interoperability, etc.) and leave everything else to vary, allowing teams autonomy and freedom to innovate.&lt;/p&gt;
+
+&lt;h2 id=&#34;in-conclusion&#34;&gt;In Conclusion&lt;/h2&gt;
+
+&lt;p&gt;There are benefits to both standardising and diversifying/customising and rather than adopting a one size fits all approach, consider each application individually.  However, be wary of approaching standardisation as a means of cutting costs - you may end up simply pushing the costs elsewhere.  Where standardising is desired, you might wish to consider building platforms to support diversity and customisation whilst still reducing time to market by leveraging a focused, common platform.&lt;/p&gt;
+
+&lt;p&gt;Consider rolling out lightweight standards across the enterprise to promote consistency in the areas that consistency is important (e.g. application integration, security, user experience, etc.) helping to accelerate product development but be careful not to restrict teams&amp;rsquo; autonomy or ability to innovate.&lt;/p&gt;
+
+&lt;p&gt;Do any of the points in this article ring true with you?  Have you observed similar things in the companies you have worked for?  If so, please comment and share your experiences.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Remote pair programming</title>
+      <link>http://www.jamesbowman.me/post/remote-pair-programming/</link>
+      <pubDate>Wed, 09 Sep 2015 07:57:38 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/remote-pair-programming/</guid>
+      <description>
+
+&lt;p&gt;During a previous job I spent a lot of time working with delivery teams on other continents, helping them develop software. I was lucky enough to visit them on several occassions for a week at a time, and whilst I was there made lots of progress working with the on-site developers.  Unfortunatley I was not able to stay on-site for the duration of the project and so needed to find other ways of collaborating with the teams remotely from back in the UK.&lt;/p&gt;
+
+&lt;p&gt;We started with daily phone calls but we quickly found this to be an awful experience.  Over the phone we struggled to hear what the team members were saying, pick up body language or subtle nuances of the discussion or even pick out who was saying what.  We upgraded to video conferences for the meetings but found, whilst considerably better than the phone, this was still not effective.  We found that, rather ironically, when you are working remotely you need to work even more collaboratively.  For example, at the meetings we would discuss approaches for the day ahead but things would get lost or misinterpreted and following the meeting, people would then go away and diligently write lots of code that was taking us off in different directions.  Communicating over a phone or even a video conference is not nearly as effective as in person.&lt;/p&gt;
+
+&lt;p&gt;We quickly looked to augment the video conferences with more hands-on collaborative working and started investigating tools which might support remote pair programming.&lt;/p&gt;
+
+&lt;h3 id=&#34;tools&#34;&gt;Tools&lt;/h3&gt;
+
+&lt;p&gt;There are lots of tools available that can help support remote pairing and we tried a lot of them.  In my opinion, these tools can be divided into 6 distinct categories as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-video-conferencing-with-screen-share&#34;&gt;Video Conferencing with screen share&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#2-tmux&#34;&gt;TMUX&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#3-vnc&#34;&gt;VNC&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#4-cloud-hosted-tmux-or-vnc&#34;&gt;Cloud hosted TMUX or VNC&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#5-web-based-ides&#34;&gt;Web based IDEs&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#6-desktop-ides&#34;&gt;Desktop IDEs&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&#34;1-video-conferencing-with-screen-share&#34;&gt;1. Video Conferencing with screen share&lt;/h4&gt;
+
+&lt;p&gt;Whilst looking for pair programming tools, I came across lots of accounts of people claiming success using screen sharing tools like &lt;a href=&#34;http://www.skype.com&#34;&gt;Skype&lt;/a&gt;, &lt;a href=&#34;http://hangouts.google.com&#34;&gt;Google Hangouts&lt;/a&gt; and &lt;a href=&#34;http://www.join.me&#34;&gt;join.me&lt;/a&gt;.  This category of tools were originally designed as communication tools to support video conferencing and screen sharing.  The screen sharing within these tools is uni-directional and supports demonstrating or presenting something from the host&amp;rsquo;s machine.&lt;/p&gt;
+
+&lt;p&gt;In practice, we found that these tools were okay for demonstrating or presenting concepts, especially to larger groups of people, but did not work well for collaborative editing and pairing.  Only one person could edit or navigate at once and transferring control required switching to the other person&amp;rsquo;s machine and for them to pull changes made on the original machine.&lt;/p&gt;
+
+&lt;h4 id=&#34;2-tmux&#34;&gt;2. TMUX&lt;/h4&gt;
+
+&lt;p&gt;Terminal multiplexing can allow multiple users to simultaneously connect to the same terminal session.  Using TMUX, terminal based editors like vi and emacs can be used simultaneously by multiple clients allowing collaborative editing.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, the developers we were working with were used to Windows and graphical user interfaces.  They had experience with, and were productive on, GUI based IDEs specifically IntelliJ and Eclipse.  Using terminal based editors with TMUX represented a steep learning curve and short-term drop in productivity for the developers and would have been a hard sell.  Additionally, we also found challenges sharing sessions with TMUX across corporate firewalls.&lt;/p&gt;
+
+&lt;h4 id=&#34;3-vnc&#34;&gt;3. VNC&lt;/h4&gt;
+
+&lt;p&gt;Virtual Network Computing is a system for the sharing and remote control of desktops.  It transmits keyboard and mouse events to the host and the graphical screen updates back the other way.  VNC is platform independent and there are clients available for most platforms like &lt;a href=&#34;https://www.realvnc.com/&#34;&gt;RealVNC&lt;/a&gt; and &lt;a href=&#34;http://sourceforge.net/projects/cotvnc/&#34;&gt;Chicken of the VNC&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We were initially very excited by VNC because it promised everything we wanted - being able to share a desktop and allow multiple people to collaboratively edit the source code using graphical desktop based IDEs that people were already familiar with.  Unfortunately, in practice we found VNC was simply too slow.  The lag between pressing a key and the character appearing on screen was extremely noticeable and we kept running into problems where one user was typing at the same time as another user moving the cursor to a different part of the screen.  We tried taking it in turns to edit and navigate so only one person was actively editing at once and then explicitly transferring control to the other person when they wanted it.  Althought this helped allieviate some of the problems, the latency VNC was adding was still really irritating and ultimately slowing down our work. Furthermore, we found that the latency was not the same for both users - the person hosting the session experienced significantly lower latency than the guest.  The natural tendency was to attribute the apparent slowness to the person they were pairing with rather than the network latency which led to frustration and tension between pairs.  Like TMUX, we also found challenges using VNC across corporate firewalls.&lt;/p&gt;
+
+&lt;h4 id=&#34;4-cloud-hosted-tmux-or-vnc&#34;&gt;4. Cloud hosted TMUX or VNC&lt;/h4&gt;
+
+&lt;p&gt;This category builds on technologies like TMUX and VNC to share sessions but rather than using direct peer-to-peer connectivity between clients, clients all connect to a centralised host.  Examples of tools available to help support this model of working are &lt;a href=&#34;https://github.com/rondale-sc/remote_pair_chef&#34;&gt;Remote Pair Chef&lt;/a&gt; and &lt;a href=&#34;https://syme.herokuapp.com/&#34;&gt;Syme&lt;/a&gt;.  The advantages of this approach over simply using TMUX or VNC with one party hosting the session are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;It works much better with corporate firewalls as all clients connect to an external host exposed on the internet rather than trying to connect to a host within a corporate network.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;By locating the host in a suitable geographical location, all clients can experience similar latency and so tend to be more understanding when working together.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;The development environment is truly shared, rather than being someone&amp;rsquo;s personal workspace.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Unfortunately we found that although moving the host into the cloud helped with a lot of the challenges we were facing, TMUX with text based editors was still a hard sell for the developers and VNC was still too slow.  Also, this might have meant moving the source code into the cloud which was not an option available to us.&lt;/p&gt;
+
+&lt;h4 id=&#34;5-web-based-ides&#34;&gt;5. Web based IDEs&lt;/h4&gt;
+
+&lt;p&gt;This category of tool are rich web application based editors and IDEs accessed via a web browser.  Examples of this type of tool include &lt;a href=&#34;https://c9.io/&#34;&gt;Cloud9&lt;/a&gt;, &lt;a href=&#34;https://atom.io/&#34;&gt;Atom&lt;/a&gt; and &lt;a href=&#34;https://madeye.io/&#34;&gt;MadEye&lt;/a&gt;.  In a similar way to Google Docs, they support collaborative editing by multiple users simultaneously.&lt;/p&gt;
+
+&lt;p&gt;We found these IDEs really exciting.  They use HTTP and clients connect to a central host accessible via the internet so avoid the connectivity and firewall based challenges that impacted options in some of the other categories.  Some of these options combine voice communication with the collaborative editing and even execution environments for building and testing code directly from the IDE.  Unfortunately at the time we considered these options, most offerings were still relatively basic in terms of the features they offered so were a hard sell for developers coming from desktop IDEs.  Also, these options tend to rely on storing the source code in the cloud, so the editor can access it.  This was not an option available to us.&lt;/p&gt;
+
+&lt;h4 id=&#34;6-desktop-ides&#34;&gt;6. Desktop IDEs&lt;/h4&gt;
+
+&lt;p&gt;Like VNC, this category of tools promised everything we wanted, but unlike VNC, the tools in this category actually delivered!  We wanted to be able to share desktops and allow multiple people to collaboratively edit the source code using the graphical desktop based IDEs they were already familiar with.  Examples of tools in this category are &lt;a href=&#34;https://screenhero.com/&#34;&gt;ScreenHero&lt;/a&gt;, &lt;a href=&#34;https://floobits.com/&#34;&gt;Floobits&lt;/a&gt; and &lt;a href=&#34;https://www.nitrous.io/&#34;&gt;Nitrous.io&lt;/a&gt;.  All three of these examples require a client to be installed on everyone&amp;rsquo;s desktop but work in very different ways.  Nitrous.io provides a web based IDE but, with a paid plan, can also continuously synchronise changes with the local filesystem on the user&amp;rsquo;s desktop allowing them to edit files using an IDE of their choice.  The Floobits client integrates with a small set of desktop IDEs to synchronise changes with remote users in the IDE directly.  Floobits currently supports NeoVim, Emacs, IntelliJ and Sublime Text IDEs.  ScreenHero works in a similar way to VNC and transfers keyboard, mouse and screen events and voice between 2 or more users.&lt;/p&gt;
+
+&lt;p&gt;We found ScreenHero the easiest to use and the most flexible as it allowed multiple people to collaboratively interact with the same desktop and use any applications on that desktop not just IDEs.  ScreenHero could be used to collaboratively edit word documents or presentations or type in the terminal.  It seemed to adjust well to different bandwidth constraints and degraded relatively gracefully when resources were constrained.&lt;/p&gt;
+
+&lt;h3 id=&#34;general-experiences&#34;&gt;General experiences&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Email is awful&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;The person with higher network bandwidth should host the sharing session when using tools like Google hangouts, VNC, ScreenHero, etc.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Use combinations of tools for different purposes e.g. Video Conferencing for discussions, Video Conferencing and screen sharing for demoing especially to larger groups, Collaborative editing tools for pairing and use communication tools like chat &lt;em&gt;all the time&lt;/em&gt;.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Just because there is a big distance (and potentially time zones) between you doesn&amp;rsquo;t mean you should batch up communication.  The greater the distance the more important it is to have frequent short communications (chat applications work really well for this).&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Extending Go programs with plugins</title>
+      <link>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</link>
+      <pubDate>Tue, 14 Jul 2015 07:47:59 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</guid>
+      <description>
+
+&lt;p&gt;I am really enjoying programming in Google&amp;rsquo;s &lt;a href=&#34;https://golang.org/&#34;&gt;Go&lt;/a&gt; language (Golang for search engines) but very occasionally come across things that aren&amp;rsquo;t really possible, or considered idiomatic, in Go.  Go is a very opinionated language which is a good thing as it keeps the language and tool chain very simple but also means if you need to do something unusual, it can sometimes feel like you are fighting the language.  One example of this is developing &lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;plugin&lt;/a&gt;s.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Plug-in_(computing)&#34;&gt;Plugin&lt;/a&gt;s are a way of allowing third parties to extend or customise the behaviour of an existing piece of software.  This can be useful in a variety of contexts but, most recently, whilst I was working on a &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;chat bot&lt;/a&gt; I wanted to use plugins to allow people to easily extend the bot&amp;rsquo;s capabilities without having to change the existing &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;code&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-other-languages&#34;&gt;Support in other languages&lt;/h2&gt;
+
+&lt;p&gt;In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &amp;lsquo;plugged&amp;rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;Class clazz = Class.forName(fullyQualifiedClassName);				
+Object product = clazz.newInstance();
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;Taking this one step further, Java has a set of conventions for creating and loading plugins called &lt;a href=&#34;https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html&#34;&gt;SPI (Service Provider Interface)&lt;/a&gt;.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.&lt;/p&gt;
+
+&lt;h2 id=&#34;support-in-go&#34;&gt;Support in Go&lt;/h2&gt;
+
+&lt;p&gt;The Go compiler statically links libraries at compilation time which results in a single, fat, executable binary without external dependencies.  This massively simplifies deployment across environments but means that unfortunately it is not possible to load alternative implementations from dynamically linked libraries at runtime as with the Java SPI approach.&lt;/p&gt;
+
+&lt;p&gt;Given the language&amp;rsquo;s constraints around dynamic linking, supporting extensibility through plugins is something a lot of people have attempted in Go and a number of alternative approaches exist including but not limited to:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;#1-out-of-process-communication&#34;&gt;Out of process communication&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#2-embedded-scripting&#34;&gt;Embedded scripting&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;#3-compiled-in-extensions&#34;&gt;Compiled-in extensions&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Each of these approaches have their own strengths and weaknesses which I will discuss over the next few sections.&lt;/p&gt;
+
+&lt;h3 id=&#34;1-out-of-process-communication&#34;&gt;1. Out of process communication&lt;/h3&gt;
+
+&lt;p&gt;This is the approach taken by Hashicorp&amp;rsquo;s &lt;a href=&#34;https://www.packer.io/docs/extend/plugins.html&#34;&gt;Packer&lt;/a&gt; tool.  Essentially the &amp;lsquo;plugin&amp;rsquo; runs as a separate process and then the existing application communicates with the Plug-in via RPC (Remote Procedure Calls).  This means that the plugin does not need to be compiled into the existing application or statically linked but can be integrated dynamically at runtime.  Other examples of this approach are &lt;a href=&#34;http://npf.io/2015/05/pie/&#34;&gt;Pie&lt;/a&gt;, &lt;a href=&#34;https://github.com/dullgiulio/pingo&#34;&gt;Pingo&lt;/a&gt; and &lt;a href=&#34;https://github.com/drone/drone&#34;&gt;Drone&lt;/a&gt;.  Pie and Drone are interesting because instead of using RPC over TCP/IP the communication with the plugin process occurs via stdin and stdout.  Drone even takes the separation between application and plugin further by having the plugin process running within its own discrete Docker container.  Some of the pros and cons of this approach are as follows:&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Plug-ins are technology independent i.e. the plugin does not necessarily need to be written in the same language as the existing application (although they will need to share a common protocol for RPC).&lt;/li&gt;
+&lt;li&gt;Process isolation - the plugin and existing application are running in separate processes so if the plugin crashes, the impact on the existing application is limited.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Added complexity through additional runtime processes, binaries to be deployed and dependencies between them.&lt;/li&gt;
+&lt;li&gt;Relatively higher latency for out of process (RPC) communication&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;2-embedded-scripting&#34;&gt;2. Embedded scripting&lt;/h3&gt;
+
+&lt;p&gt;This approach uses an embedded scripting engine to execute scripts in process.  As the scripts are interpreted rather than compiled, their implementation can be extended and changed without modifying the existing application.  Some examples include &lt;a href=&#34;https://github.com/PuerkitoBio/agora&#34;&gt;Agora&lt;/a&gt;, &lt;a href=&#34;https://github.com/mattn/anko&#34;&gt;Anko&lt;/a&gt;, &lt;a href=&#34;https://github.com/robertkrimen/otto&#34;&gt;Otto&lt;/a&gt; and &lt;a href=&#34;https://github.com/Shopify/go-lua&#34;&gt;Go-Lua&lt;/a&gt;.  The syntax of both Agora and Anko bear a striking resemblence to Go whilst Otto and Go-Lua provide bindings for JavaScript and Lua script respectively.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Dynamic invocation at runtime.&lt;/li&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes.&lt;/li&gt;
+&lt;li&gt;Language bindings allow in process communication and data passing between existing application and scripts&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Usually require knowledge of another language e.g. Lua, JavaScript.&lt;/li&gt;
+&lt;li&gt;Possible reduced performance of interpreted code relative to compiled code.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;3-compiled-in-extensions&#34;&gt;3. Compiled-in extensions&lt;/h3&gt;
+
+&lt;p&gt;This is the approach that the Go language uses internally to support extensions e.g. &lt;a href=&#34;http://blog.golang.org/go-image-package#TOC_5.&#34;&gt;image formats&lt;/a&gt; and &lt;a href=&#34;http://golang.org/pkg/database/sql/&#34;&gt;database drivers&lt;/a&gt;.  Essentially, third parties develop their own plugins and compile the existing application themselves along with the source for their plugin without needing to modify the code for the existing application.  This was the approach I ended up adopting for Talbot and will discuss it in more depth in next sections.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Relatively simple - no additional runtime processes, extra deployment artifacts or dependencies.&lt;/li&gt;
+&lt;li&gt;Simple deployment - one fat binary deployable.&lt;/li&gt;
+&lt;li&gt;All code written in Go.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Statically linked - requires third parties to compile existing application themselves.&lt;/li&gt;
+&lt;li&gt;Behaviour cannot be changed/extended without re-compiling the whole application.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;compiled-in-extensions-in-more-depth&#34;&gt;Compiled-in extensions - In more depth&lt;/h2&gt;
+
+&lt;p&gt;I ended up choosing the compiled-in extensions approach for &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;my chat bot&lt;/a&gt;. The compiled-in approach means that third-parties can clone or fork the &lt;a href=&#34;https://github.com/james-bowman/talbot&#34;&gt;repository&lt;/a&gt;, add their plugins/extensions into the appropriate package and then compile the application (with the plugins included).  This approach relies on a couple of Go language features which are worth considering in more detail.&lt;/p&gt;
+
+&lt;h3 id=&#34;the-init-function&#34;&gt;The init() function&lt;/h3&gt;
+
+&lt;p&gt;Whenever a package is imported, any functions called &lt;code&gt;init()&lt;/code&gt; in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;anonymous-underscore-imports&#34;&gt;Anonymous (underscore) imports&lt;/h3&gt;
+
+&lt;p&gt;The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, we need to import a package in order for the Go compiler to execute any &lt;code&gt;init()&lt;/code&gt; functions in that package, but often, we don&amp;rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h3 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h3&gt;
+
+&lt;p&gt;A simple plugin architecture using the compile-in extension approach could be established using 3 packages as follow:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;repo/
+repo/plugins/
+repo/plugins/third-party/
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;With this structure, the &lt;code&gt;repo/&lt;/code&gt; folder would be the &lt;code&gt;main&lt;/code&gt; package for the application.  The &lt;code&gt;repo/plugins/&lt;/code&gt; package would contain generic code to support third party plugins and the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package would be where the actual plugins would be placed by third parties.&lt;/p&gt;
+
+&lt;p&gt;In one of the files inside &lt;code&gt;repo/&lt;/code&gt; there should be an anonymous import for &lt;code&gt;repo/plugins/third-party&lt;/code&gt; as shown in the code snippet below:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;main&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code&gt;repo/plugins/&lt;/code&gt; package should contain a file containing the following code:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// define type for plugin - in this case it is just a function but it could be an interface&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; plugInFunc &lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;
+
+&lt;span style=&#34;color: #008000&#34;&gt;// map to store registered plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; registry &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]plugInFunc
+
+&lt;span style=&#34;color: #008000&#34;&gt;// Register plugins&lt;/span&gt;
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Register(name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, plugIn plugInFunc) {
+	registry[name] = plugIn
+}
+&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The &lt;code&gt;registry&lt;/code&gt; is simply a map to store plugins registered using the exported &lt;code&gt;Register(string, plugInFunc)&lt;/code&gt; function.&lt;/p&gt;
+
+&lt;p&gt;Finally new plugins should be placed within the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package and should be structured as in the following code snippet:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+	plugins.Register(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;myPlugin&amp;quot;&lt;/span&gt;, myFunction)
+}
+
+&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; myFunction(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
+	&lt;span style=&#34;color: #008000&#34;&gt;// plugin functionality&lt;/span&gt;
+}
+&lt;/pre&gt;&lt;/div&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

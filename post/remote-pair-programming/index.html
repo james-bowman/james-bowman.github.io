@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        <meta name="twitter:card" content="summary"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Remote pair programming"/>
+<meta name="twitter:description" content="Experiences of remote pair programming and comparisons of tools for collaborative editing"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Remote pair programming &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/remote-pair-programming/" />
+
+    
+    <meta property="og:description" content="Experiences of remote pair programming and comparisons of tools for collaborative editing" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="article:published_time" content="2015-09-09T07:57:38&#43;01:00" />
+
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="agile" />
+    
+    <meta property="article:tag" content="pair programming" />
+    
+    <meta property="article:tag" content="collaboration" />
+    
+    <meta property="article:tag" content="distributed/remote working" />
+    
+    
+
+    
+  
+    <title>Remote pair programming &middot; James Bowman</title>
+
+    
+    <meta name="description" content="Experiences of remote pair programming and comparisons of tools for collaborative editing" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/remote-pair-programming/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Remote pair programming",
+    "name": "Remote pair programming",
+    "wordCount":  1507 ,
+    "timeRequired": "PT8M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/remote-pair-programming/",
+    "datePublished": "2015-09-09T07:57Z",
+    "dateModified": "2015-09-09T07:57Z",
+    
+    
+    "keywords": "development, agile, pair programming, collaboration, distributed/remote working",
+    "description": "Experiences of remote pair programming and comparisons of tools for collaborative editing",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/remote-pair-programming/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+<header class="main-header post-head no-cover">
+  <nav class="main-nav clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Remote pair programming</h1>
+        <small>Experiences of remote pair programming and comparisons of tools for collaborative editing</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2015-09-09T07:57:38&#43;01:00">
+            Sep 9, 2015
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/agile/">#agile</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/pair-programming/">#pair programming</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/collaboration/">#collaboration</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/distributed/remote-working/">#distributed/remote working</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>During a previous job I spent a lot of time working with delivery teams on other continents, helping them develop software. I was lucky enough to visit them on several occassions for a week at a time, and whilst I was there made lots of progress working with the on-site developers.  Unfortunatley I was not able to stay on-site for the duration of the project and so needed to find other ways of collaborating with the teams remotely from back in the UK.</p>
+
+<p>We started with daily phone calls but we quickly found this to be an awful experience.  Over the phone we struggled to hear what the team members were saying, pick up body language or subtle nuances of the discussion or even pick out who was saying what.  We upgraded to video conferences for the meetings but found, whilst considerably better than the phone, this was still not effective.  We found that, rather ironically, when you are working remotely you need to work even more collaboratively.  For example, at the meetings we would discuss approaches for the day ahead but things would get lost or misinterpreted and following the meeting, people would then go away and diligently write lots of code that was taking us off in different directions.  Communicating over a phone or even a video conference is not nearly as effective as in person.</p>
+
+<p>We quickly looked to augment the video conferences with more hands-on collaborative working and started investigating tools which might support remote pair programming.</p>
+
+<h3 id="tools">Tools</h3>
+
+<p>There are lots of tools available that can help support remote pairing and we tried a lot of them.  In my opinion, these tools can be divided into 6 distinct categories as follows:</p>
+
+<ol>
+<li><a href="#1-video-conferencing-with-screen-share">Video Conferencing with screen share</a></li>
+<li><a href="#2-tmux">TMUX</a></li>
+<li><a href="#3-vnc">VNC</a></li>
+<li><a href="#4-cloud-hosted-tmux-or-vnc">Cloud hosted TMUX or VNC</a></li>
+<li><a href="#5-web-based-ides">Web based IDEs</a></li>
+<li><a href="#6-desktop-ides">Desktop IDEs</a></li>
+</ol>
+
+<h4 id="1-video-conferencing-with-screen-share">1. Video Conferencing with screen share</h4>
+
+<p>Whilst looking for pair programming tools, I came across lots of accounts of people claiming success using screen sharing tools like <a href="http://www.skype.com">Skype</a>, <a href="http://hangouts.google.com">Google Hangouts</a> and <a href="http://www.join.me">join.me</a>.  This category of tools were originally designed as communication tools to support video conferencing and screen sharing.  The screen sharing within these tools is uni-directional and supports demonstrating or presenting something from the host&rsquo;s machine.</p>
+
+<p>In practice, we found that these tools were okay for demonstrating or presenting concepts, especially to larger groups of people, but did not work well for collaborative editing and pairing.  Only one person could edit or navigate at once and transferring control required switching to the other person&rsquo;s machine and for them to pull changes made on the original machine.</p>
+
+<h4 id="2-tmux">2. TMUX</h4>
+
+<p>Terminal multiplexing can allow multiple users to simultaneously connect to the same terminal session.  Using TMUX, terminal based editors like vi and emacs can be used simultaneously by multiple clients allowing collaborative editing.</p>
+
+<p>Unfortunately, the developers we were working with were used to Windows and graphical user interfaces.  They had experience with, and were productive on, GUI based IDEs specifically IntelliJ and Eclipse.  Using terminal based editors with TMUX represented a steep learning curve and short-term drop in productivity for the developers and would have been a hard sell.  Additionally, we also found challenges sharing sessions with TMUX across corporate firewalls.</p>
+
+<h4 id="3-vnc">3. VNC</h4>
+
+<p>Virtual Network Computing is a system for the sharing and remote control of desktops.  It transmits keyboard and mouse events to the host and the graphical screen updates back the other way.  VNC is platform independent and there are clients available for most platforms like <a href="https://www.realvnc.com/">RealVNC</a> and <a href="http://sourceforge.net/projects/cotvnc/">Chicken of the VNC</a>.</p>
+
+<p>We were initially very excited by VNC because it promised everything we wanted - being able to share a desktop and allow multiple people to collaboratively edit the source code using graphical desktop based IDEs that people were already familiar with.  Unfortunately, in practice we found VNC was simply too slow.  The lag between pressing a key and the character appearing on screen was extremely noticeable and we kept running into problems where one user was typing at the same time as another user moving the cursor to a different part of the screen.  We tried taking it in turns to edit and navigate so only one person was actively editing at once and then explicitly transferring control to the other person when they wanted it.  Althought this helped allieviate some of the problems, the latency VNC was adding was still really irritating and ultimately slowing down our work. Furthermore, we found that the latency was not the same for both users - the person hosting the session experienced significantly lower latency than the guest.  The natural tendency was to attribute the apparent slowness to the person they were pairing with rather than the network latency which led to frustration and tension between pairs.  Like TMUX, we also found challenges using VNC across corporate firewalls.</p>
+
+<h4 id="4-cloud-hosted-tmux-or-vnc">4. Cloud hosted TMUX or VNC</h4>
+
+<p>This category builds on technologies like TMUX and VNC to share sessions but rather than using direct peer-to-peer connectivity between clients, clients all connect to a centralised host.  Examples of tools available to help support this model of working are <a href="https://github.com/rondale-sc/remote_pair_chef">Remote Pair Chef</a> and <a href="https://syme.herokuapp.com/">Syme</a>.  The advantages of this approach over simply using TMUX or VNC with one party hosting the session are as follows:</p>
+
+<ul>
+<li><p>It works much better with corporate firewalls as all clients connect to an external host exposed on the internet rather than trying to connect to a host within a corporate network.</p></li>
+
+<li><p>By locating the host in a suitable geographical location, all clients can experience similar latency and so tend to be more understanding when working together.</p></li>
+
+<li><p>The development environment is truly shared, rather than being someone&rsquo;s personal workspace.</p></li>
+</ul>
+
+<p>Unfortunately we found that although moving the host into the cloud helped with a lot of the challenges we were facing, TMUX with text based editors was still a hard sell for the developers and VNC was still too slow.  Also, this might have meant moving the source code into the cloud which was not an option available to us.</p>
+
+<h4 id="5-web-based-ides">5. Web based IDEs</h4>
+
+<p>This category of tool are rich web application based editors and IDEs accessed via a web browser.  Examples of this type of tool include <a href="https://c9.io/">Cloud9</a>, <a href="https://atom.io/">Atom</a> and <a href="https://madeye.io/">MadEye</a>.  In a similar way to Google Docs, they support collaborative editing by multiple users simultaneously.</p>
+
+<p>We found these IDEs really exciting.  They use HTTP and clients connect to a central host accessible via the internet so avoid the connectivity and firewall based challenges that impacted options in some of the other categories.  Some of these options combine voice communication with the collaborative editing and even execution environments for building and testing code directly from the IDE.  Unfortunately at the time we considered these options, most offerings were still relatively basic in terms of the features they offered so were a hard sell for developers coming from desktop IDEs.  Also, these options tend to rely on storing the source code in the cloud, so the editor can access it.  This was not an option available to us.</p>
+
+<h4 id="6-desktop-ides">6. Desktop IDEs</h4>
+
+<p>Like VNC, this category of tools promised everything we wanted, but unlike VNC, the tools in this category actually delivered!  We wanted to be able to share desktops and allow multiple people to collaboratively edit the source code using the graphical desktop based IDEs they were already familiar with.  Examples of tools in this category are <a href="https://screenhero.com/">ScreenHero</a>, <a href="https://floobits.com/">Floobits</a> and <a href="https://www.nitrous.io/">Nitrous.io</a>.  All three of these examples require a client to be installed on everyone&rsquo;s desktop but work in very different ways.  Nitrous.io provides a web based IDE but, with a paid plan, can also continuously synchronise changes with the local filesystem on the user&rsquo;s desktop allowing them to edit files using an IDE of their choice.  The Floobits client integrates with a small set of desktop IDEs to synchronise changes with remote users in the IDE directly.  Floobits currently supports NeoVim, Emacs, IntelliJ and Sublime Text IDEs.  ScreenHero works in a similar way to VNC and transfers keyboard, mouse and screen events and voice between 2 or more users.</p>
+
+<p>We found ScreenHero the easiest to use and the most flexible as it allowed multiple people to collaboratively interact with the same desktop and use any applications on that desktop not just IDEs.  ScreenHero could be used to collaboratively edit word documents or presentations or type in the terminal.  It seemed to adjust well to different bandwidth constraints and degraded relatively gracefully when resources were constrained.</p>
+
+<h3 id="general-experiences">General experiences</h3>
+
+<ul>
+<li><p>Email is awful</p></li>
+
+<li><p>The person with higher network bandwidth should host the sharing session when using tools like Google hangouts, VNC, ScreenHero, etc.</p></li>
+
+<li><p>Use combinations of tools for different purposes e.g. Video Conferencing for discussions, Video Conferencing and screen sharing for demoing especially to larger groups, Collaborative editing tools for pairing and use communication tools like chat <em>all the time</em>.</p></li>
+
+<li><p>Just because there is a big distance (and potentially time zones) between you doesn&rsquo;t mean you should batch up communication.  The greater the distance the more important it is to have frequent short communications (chat applications work really well for this).</p></li>
+</ul>
+
+
+       
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Remote%20pair%20programming&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fremote-pair-programming%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fremote-pair-programming%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fremote-pair-programming%2f&amp;description=Remote%20pair%20programming"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fremote-pair-programming%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/remote-pair-programming\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

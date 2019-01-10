@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/optimising-go-code-with-assembler/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part3/</loc>
+    <lastmod>2017-07-07T18:45:40+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms-part2/</loc>
+    <lastmod>2017-06-09T16:45:40+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/</loc>
+    <lastmod>2017-03-31T16:31:29+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/</loc>
+    <lastmod>2017-03-07T13:55:54+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/socratic-questions-revisited/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/</loc>
+    <lastmod>2017-01-30T08:34:52+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/using-data-to-identify-impact-of-southern-rail-industrial-action/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/standardisation-in-the-enterprise/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/remote-pair-programming/</loc>
+    <lastmod>2015-09-09T07:57:38+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/socratic-questions/</loc>
+    <lastmod>2015-08-18T16:51:47+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/leadership-styles/</loc>
+    <lastmod>2015-07-27T06:39:34+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/extending-go-programs-with-plugins/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/cd-pipeline-for-blogging/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/about-james-bowman/</loc>
+    <lastmod>2015-07-02T18:02:06+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/agile/</loc>
+    <lastmod>2015-09-09T07:57:38+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/ai/</loc>
+    <lastmod>2017-03-07T13:55:54+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/algorithms/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/analytics/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/architecture/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/blog/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/categories/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/cd/</loc>
+    <lastmod>2017-01-30T08:34:52+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/coaching/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/categories/coaching/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/collaboration/</loc>
+    <lastmod>2015-09-09T07:57:38+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/conways-law/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/critical-thinking/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/csv/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/data/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/data-structures/</loc>
+    <lastmod>2017-06-09T16:45:40+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/development/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/categories/development/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/devops/</loc>
+    <lastmod>2017-01-30T08:34:52+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/categories/devops/</loc>
+    <lastmod>2017-01-30T08:34:52+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/distributed/remote-working/</loc>
+    <lastmod>2015-09-09T07:57:38+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/enterprise-architecture/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/git/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/github/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/go/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/golang/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/government/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/heat-maps/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/hugo/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/influencing/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/java/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/land-registry/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/leadership/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/machine-learning/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/maturity/</loc>
+    <lastmod>2015-07-27T06:39:34+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/open-data/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/pair-programming/</loc>
+    <lastmod>2015-09-09T07:57:38+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/platform/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/plugins/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/post/</loc>
+    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/property-prices/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/psychology/</loc>
+    <lastmod>2017-02-09T21:46:43+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/r/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/rpc/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/scraping/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/scripting/</loc>
+    <lastmod>2015-07-14T07:47:59+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/southern-rail/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/standards/</loc>
+    <lastmod>2016-02-09T07:49:02+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/tools/</loc>
+    <lastmod>2017-01-30T08:34:52+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/visualisation/</loc>
+    <lastmod>2017-01-10T15:17:18+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/tags/wercker/</loc>
+    <lastmod>2015-07-06T19:13:19+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+</urlset>

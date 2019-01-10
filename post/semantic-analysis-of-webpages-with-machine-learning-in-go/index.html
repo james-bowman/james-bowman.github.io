@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    
+
+
+    
+    
+        
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:image" content="http://www.jamesbowman.me//post/semanticanalysis/semantic-analysis-gopher.jpeg"/>
+    
+    
+
+
+
+<meta name="twitter:title" content="Semantic analysis of webpages with machine learning in Go"/>
+<meta name="twitter:description" content="Using Golang for LSA (Latent Semantic Analysis) of webpages to recommend semantically related content"/>
+<meta name="twitter:site" content="@jamesebowman"/>
+
+
+
+  	<meta property="og:title" content="Semantic analysis of webpages with machine learning in Go &middot; James Bowman" />
+  	<meta property="og:site_name" content="James Bowman" />
+  	<meta property="og:url" content="http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/" />
+
+    
+    <meta property="og:description" content="Using Golang for LSA (Latent Semantic Analysis) of webpages to recommend semantically related content" />
+  	<meta property="og:type" content="article" />
+    
+    <meta property="og:image" content="http://www.jamesbowman.me//post/semanticanalysis/semantic-analysis-gopher.jpeg" />
+    
+    <meta property="article:published_time" content="2017-03-07T13:55:54Z" />
+
+    
+    <meta property="article:tag" content="development" />
+    
+    <meta property="article:tag" content="go" />
+    
+    <meta property="article:tag" content="machine learning" />
+    
+    <meta property="article:tag" content="ai" />
+    
+    
+
+    
+  
+    <title>Semantic analysis of webpages with machine learning in Go &middot; James Bowman</title>
+
+    
+    <meta name="description" content="Using Golang for LSA (Latent Semantic Analysis) of webpages to recommend semantically related content" />
+    
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="shortcut icon" href="http://www.jamesbowman.me/images/favicon.ico">
+	  <link rel="apple-touch-icon" href="http://www.jamesbowman.me/images/apple-touch-icon.png" />
+
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="http://www.jamesbowman.me/css/nav.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400|Inconsolata" />
+
+
+    
+        <link href="http://feeds.jamesbowman.me/jamesbowman/blog" rel="alternate" type="application/rss+xml" title="James Bowman" />
+    
+    <meta name="generator" content="Hugo 0.18" />
+
+    <link rel="canonical" href="http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/" />
+
+    
+      
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "James Bowman",
+        "logo": "http://www.jamesbowman.me/selfportraitBWcirc.png"
+    },
+    "author": {
+        "@type": "Person",
+        "name": "James Bowman",
+        
+        "image": {
+            "@type": "ImageObject",
+            "url": "http://www.jamesbowman.me/selfportraitBWcirc.png",
+            "width": 250,
+            "height": 250
+        }, 
+        
+        "url": "http://www.jamesbowman.me",
+        "sameAs": [
+            
+            
+             "https://plus.google.com/+JamesBowman1978",
+             "https://github.com/james-bowman",
+             
+             "https://uk.linkedin.com/in/jamesedwardbowman",
+             "https://twitter.com/JameseBowman"
+            
+        ],
+        "description": "I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people's behaviour and organisational change."
+        
+    },
+    "headline": "Semantic analysis of webpages with machine learning in Go",
+    "name": "Semantic analysis of webpages with machine learning in Go",
+    "wordCount":  2223 ,
+    "timeRequired": "PT11M",
+    "inLanguage": {
+      "@type": "Language",
+      "alternateName": "en"
+    },
+    "url": "http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/",
+    "datePublished": "2017-03-07T13:55Z",
+    "dateModified": "2017-03-07T13:55Z",
+    
+    "image": {
+        "@type": "ImageObject",
+        "url": "http://www.jamesbowman.me//post/semanticanalysis/semantic-analysis-gopher.jpeg",
+        "width": 3000,
+        "height": 1445
+    },
+    
+    
+    "keywords": "development, go, machine learning, ai",
+    "description": "Using Golang for LSA (Latent Semantic Analysis) of webpages to recommend semantically related content",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/"
+    }
+}
+    </script>
+    
+
+
+    
+
+    
+
+    
+        
+<script>
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MRG66N');</script>
+
+
+
+    
+</head>
+<body class="nav-closed">
+
+  
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MRG66N"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+
+<div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        
+        
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/">Blog</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/about-james-bowman">About me</a>
+            </li>
+        
+    </ul>
+    
+    
+    <a class="subscribe-button icon-feed" href="http://feeds.jamesbowman.me/jamesbowman/blog">Subscribe</a> </div>
+    
+</div>
+<span class="nav-cover"></span>
+
+
+ <div class="site-wrapper">
+
+
+
+
+  
+  <header class="main-header post-head" style="background-image: url(http://www.jamesbowman.me//post/semanticanalysis/semantic-analysis-gopher.jpeg)">
+  
+  <nav class="main-nav overlay clearfix">
+
+
+  <a class="menu-button" style="float: left;" href="http://www.jamesbowman.me/"><span class="icon-home"/><span class="word">&lt;&nbsp; Home</span></a>
+  
+      <a class="menu-button" href="#"><span class="burger">&#9776;</span><span class="word">Menu</span></a>
+  
+  </nav>
+</header>
+
+
+
+<main class="content" role="main">
+
+
+
+
+  <article class="post post">
+
+    <header class="post-header">
+        <h1 class="post-title">Semantic analysis of webpages with machine learning in Go</h1>
+        <small>Using Golang for LSA (Latent Semantic Analysis) of webpages to recommend semantically related content</small>
+
+        <section class="post-meta">
+        
+          <time class="post-date" datetime="2017-03-07T13:55:54Z">
+            Mar 7, 2017
+          </time>
+        
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/development/">#development</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/go/">#go</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/machine-learning/">#machine learning</a></span>
+         
+          <span class="post-tag small"><a href="http://www.jamesbowman.me/tags/ai/">#ai</a></span>
+         
+        </section>
+    </header>
+
+    <section class="post-content">
+      
+
+<p>I spend a lot of time reading articles on the internet and started wondering whether I could develop software to automatically discover and recommend articles relevant to my interests.  There are various aspects to this problem but I have decided to concentrate first on the core part of the problem: the analysis and classification of the articles.</p>
+
+<p>To illustrate the problem, lets consider the following string representing an article for the purpose of this example.</p>
+
+<pre><code>&quot;the cunning creature ran around the canine&quot;
+</code></pre>
+
+<p>We will attempt to use this article as a query to find similar or related articles from the following set of strings (usually referred to as a &lsquo;corpus&rsquo;), where each string also represents an article.</p>
+
+<pre><code>&quot;The quick brown fox jumped over the lazy dog&quot;
+&quot;hey diddle diddle, the cat and the fiddle&quot;
+&quot;the fast cunning brown fox liked the slow canine dog &quot;
+&quot;the little dog laughed to see such fun&quot;
+&quot;and the dish ran away with the spoon&quot;
+</code></pre>
+
+<p>The approaches we will consider for this example will work with any type of query equally whether the query is itself an article as above or simply a short string of words.  The <a href="https://github.com/james-bowman/nlp">code used in this example is on Github</a> and <a href="#go-implement-it-pun-intended">code demoing its use is included at the end of this blog post</a>.</p>
+
+<h2 id="term-frequency">Term Frequency</h2>
+
+<p>One common approach is to capture the frequency with which each word (referred to as &lsquo;term&rsquo;) appears in each article (referred to as &lsquo;document&rsquo;), modelling each document as a numerical vector of term frequencies.  The result is a <a href="https://en.wikipedia.org/wiki/Document-term_matrix">term document matrix</a> where each element <em>td<sub>i, j</sub></em> represents the frequency with which the corresponding term <em>t<sub>i</sub></em> appears within the associated document <em>d<sub>j</sub></em>.  This is illustrated in the term document matrix below, constructed from our example corpus of articles.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/tf.jpeg">
+        <img src="/post/semanticanalysis/tf.jpeg" alt="Term Document Matrix showing frequency of term occurance across document corpus" />
+    </a>
+    
+</figure>
+
+
+<p>Values of 0 within the matrix, representing no occurances, have been shown as blank cells to aid readability.  The column shown on the right of the matrix represents the article we are using as a query, included for comparison purposes.</p>
+
+<p>It should be clear that that this matrix does not capture the sequence or proximity of words but rather simply their frequency regardless of where they appear in each document.  A casual inspection of the values in the matrix should reveal that the third article <code>the fast cunning brown fox liked the slow canine dog</code> is the best match for our query having the most terms in common.  This similarity can be confirmed by comparing the <a href="https://en.wikipedia.org/wiki/Cosine_similarity">cosine similarity</a> of each document in our corpus against the query.</p>
+
+<p>Cosine similarity is a mathmatical measure of similarity between 2 numerical vectors that essentially calculates the difference between their angles.  For a more in depth <a href="http://blog.christianperone.com/2013/09/machine-learning-cosine-similarity-for-vector-space-models-part-iii/">explanation of cosine similarity please refer to this article by Christian Perone</a>.  The calculated cosine similiarities will range from 0 (representing complete orthogonality) and 1 (representing a perfect match) with a higher cosine similarity value indicating greater similarity.  Comparing our query with each of the document vectors yields the following results:</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/tf-cosine.jpeg">
+        <img src="/post/semanticanalysis/tf-cosine.jpeg" alt="Cosine similarities between query and each document in corpus" />
+    </a>
+    
+</figure>
+
+
+<p>These results confirm our observations that <code>the fast cunning brown fox liked the slow canine dog</code> is indeed the closest match to our query.</p>
+
+<p>Whilst this approach gave some success, there are a number of weaknesses.  Re-examining the term document matrix, we can see that the second document <code>hey diddle diddle, the cat and the fiddle</code> had only one word in common with our query (<code>the</code>) and yet it scored a cosine similarity of <code>0.436436</code> because the word appeared twice in both the article and the query.  In comparison, the first article <code>The quick brown fox jumped over the lazy dog</code> is semantically much more closely related to our query and yet it scores only a slightly higher cosine similarity.  We shall tackle both these problems but lets start with the first: how to remove bias caused by words that occur frequently across the corpus e.g. <code>the</code>, <code>a</code>, <code>and</code>, etc.</p>
+
+<h2 id="tf-idf-term-frequency-inverse-document-frequency">TF-IDF (Term Frequency - Inverse Document Frequency)</h2>
+
+<p>One approach to solving this problem is to apply weightings to the term frequency values in the term document matrix.  Words that appear frequently across the corpus will be given less weight than uncommon words so that they match less strongly.  There are a number of formula available to do this, but one of the most common is <a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf">tf-idf</a>.  In tf-idf, the inverse document frequency for each term is multiplied by the corresponding raw term frequency values in the matrix to yield a weighted tf-idf matrix.  The formula for calculating tf-idf is as follows:</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/tfidf-formula.jpeg">
+        <img src="/post/semanticanalysis/tfidf-formula.jpeg" alt="tf-idf formula" />
+    </a>
+    
+</figure>
+
+
+<p>Where <em>df<sub>t</sub></em> is the document frequency for a term i.e. the number of documents within which the term occurs and <em>n</em> is the total number of documents within the corpus.  Both <em>df<sub>t</sub></em> and <em>n</em> are added to 1 to remove the risk of dividing by 0.  Using this formula, a term that appears in every document (e.g. <code>the</code> in our example corpus above) will be weighted down to 0 effectively cancelling itself out.</p>
+
+<p>So, lets review our term document matrix after applying the tf-idf transformation.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/tfidf.jpeg">
+        <img src="/post/semanticanalysis/tfidf.jpeg" alt="Term document matrix of tf-idf values across example corpus" />
+    </a>
+    
+</figure>
+
+
+<p>As theorised above, we can see that the word <code>the</code> has been cancelled out entirely, now scored as 0 in the term document matrix.  Obviously, any transformation we apply to the documents within the corpus should also be applied to the query so that we are comparing like for like.</p>
+
+<p>Now, lets see what effect the tf-idf transformation has had on our cosine similarity scores.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/tfidf-cosine.jpeg">
+        <img src="/post/semanticanalysis/tfidf-cosine.jpeg" alt="Cosine similarities between query and each document in corpus after tf-idf transforms" />
+    </a>
+    
+</figure>
+
+
+<p>Looking at the new cosine similarity values we can see that only articles sharing words in common with our query are scoring non-zero cosine similarity.  The tf-idf transformation removed the noise caused by commonly occuring words and has given us much cleaner and more marked results.</p>
+
+<h2 id="latent-semantic-analysis">Latent Semantic Analysis</h2>
+
+<p>Whilst we are now getting clean similarity scores based on word occurance, we are still not matching semantically similar documents.  For example, the first document <code>The quick brown fox jumped over the lazy dog</code> is semantically similar to our query - they are both about foxes and dogs.  However, following tf-idf, this document now scores a cosine similarity of 0 because they have no words in common (beyond the word <code>the</code> which we weighted down by applying the tf-idf transform).  So, how do we extract the semantic meaning hidden behind the term frequencies within the model?  Enter Latent Semantic Analysis!</p>
+
+<p><a href="https://en.wikipedia.org/wiki/Latent_semantic_analysis">Latent Semantic Analysis (LSA) or Latent Semantic Indexing (LSI)</a>, as it is sometimes called in relation to information retrieval and searching, surfaces hidden semantic attributes within the corpus based upon the co-occurance of terms.  It assumes that words that frequently occur together do so because they are semantically related to the same topic, concept or meaning.  This is particularly important when analysing different words that mean the same thing, referred to as <em>synonymy</em> in natural language processing and allows documents to be considered similar even when they might not necessarily share any terms in common.</p>
+
+<p>Latent Semantic Analysis relies on a mathematical process called <a href="https://en.wikipedia.org/wiki/Singular_value_decomposition#Reduced_SVDs">truncated Singular Value Decomposition (SVD)</a> to reduce the dimensionality of the term document matrix.  Truncated SVD yields a new matrix that is the closest approximation to the original matrix within a significantly reduced dimensional space.  For a more in depth explanation of the mathematics involed or internal workings of SVD please refer to the <a href="https://github.com/james-bowman/nlp/blob/master/dimreduction.go">Golang code using SVD here</a> and/or the <a href="#references">material referenced at the end of the article</a>. There are a number of advantages to the reduced dimensions as follows:</p>
+
+<ol>
+<li>The reduced dimensions should theoretically require less memory to store</li>
+<li>The act of truncating the least significant dimensions can reduce noise in the data leading to cleaner results</li>
+<li>Representing the document feature vectors in reduced dimensional space encodes co-occurance of terms and the hidden semantic meaning allowing matches between similar documents even with no terms in common.</li>
+</ol>
+
+<p>For the purposes of this example, I shall project the tf-idf term document matrix into 2 dimensions as the initial dimensionality is relatively low anyway and 2 dimensions lends itself to visualisation (as we will see later).  Usually in LSA, a value around 100 tends to yield the best results <sup><a href="http://people.ischool.berkeley.edu/~rosario/projects/LSI.pdf">2</a></sup>.  Lets take a look at our matrix of feature vectors following SVD.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/lsi.jpeg">
+        <img src="/post/semanticanalysis/lsi.jpeg" alt="Feature vectors for articles following Singular Value Decomposition" />
+    </a>
+    
+</figure>
+
+
+<p>It should be clear that where we previously had a row for every term within the matrix, we now have only 2 dimensions to the matrix which represent the 2 dimensions of largest variation amongst the documents.  As before, we must also project the query into the same dimensional space as the documents before we can compare them for similarity.</p>
+
+<p>As the documents are now represented in 2 dimensions, it is possible to plot each document vector to help visualise clustering patterns in the documents.  Lets take a look.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/plot.jpeg">
+        <img src="/post/semanticanalysis/plot.jpeg" alt="Visualising the documents in 2 dimensional space" />
+    </a>
+    
+</figure>
+
+
+<p>The saavy reader may have noticed that I have used logarithmic scales on both axis - this was to improve readability of the visualisation and make the angle between the query and other documents clearer.  Looking at the plot, we can see that the documents have formed into 2 main clusters in this dimensional space.  Those that are related to foxes and dogs, and those that are not.  We can also see that the query is closer in angle (measured by a line from the origin to the point marked in the plot) to the cluster of documents relating to foxes and dogs which is exactly as it should be.  Lets check the cosine similarities of the query with the document vectors in this dimensional space to check we are correct.</p>
+
+
+<figure >
+    <a href="/post/semanticanalysis/lsi-cosine.jpeg">
+        <img src="/post/semanticanalysis/lsi-cosine.jpeg" alt="Cosine similarities between query and each document in corpus after SVD factorisation" />
+    </a>
+    
+</figure>
+
+
+<p>The cosine similarity scores support our observations from the plot.  We can also see that our query <code>&quot;the cunning creature ran around the canine&quot;</code> strongly matches the document <code>&quot;The quick brown fox jumped over the lazy dog&quot;</code> even though they share no terms in common.  The LSA has successfully resolved that they are both semantically related to foxes and dogs.</p>
+
+<h2 id="go-implement-it-pun-intended">Go implement it (pun intended)</h2>
+
+<p>I have developed [Golang implementations for the machine learning algorithms described in this article and published them on Github][].  The implementations are based on papers and tutorials in the public domain and the structure of the code takes some inspiration from <a href="http://scikit-learn.org/stable/">Python&rsquo;s scikit-learn</a>.  Here is an example of how to use the library to output cosine similarities between the example query and document corpus used in this blog post following term frequency vectorisation, tf-idf transformation and SVD factorisation.</p>
+<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> main
+
+<span style="color: #0000ff">import</span> (
+	<span style="color: #a31515">&quot;fmt&quot;</span>
+
+	<span style="color: #a31515">&quot;gonum.org/v1/gonum/mat&quot;</span>
+	<span style="color: #a31515">&quot;github.com/james-bowman/nlp&quot;</span>
+)
+
+<span style="color: #0000ff">func</span> main() {
+	testCorpus := []<span style="color: #2b91af">string</span>{
+		<span style="color: #a31515">&quot;The quick brown fox jumped over the lazy dog&quot;</span>,
+		<span style="color: #a31515">&quot;hey diddle diddle, the cat and the fiddle&quot;</span>,
+		<span style="color: #a31515">&quot;the fast cunning brown fox liked the slow canine dog &quot;</span>,
+		<span style="color: #a31515">&quot;the little dog laughed to see such fun&quot;</span>,
+		<span style="color: #a31515">&quot;and the dish ran away with the spoon&quot;</span>,
+	}
+
+	query := <span style="color: #a31515">&quot;the cunning creature ran around the canine&quot;</span>
+
+	vectoriser := nlp.NewCountVectoriser(<span style="color: #0000ff">false</span>)
+	transformer := nlp.NewTfidfTransformer()
+
+	<span style="color: #008000">// set k (the number of dimensions following truncation) to 2</span>
+	reducer := nlp.NewTruncatedSVD(2)
+
+	<span style="color: #008000">// Fit and Transform the corpus into a term document matrix fitting the </span>
+	<span style="color: #008000">// model to the documents in the process</span>
+	matrix, _ := vectoriser.FitTransform(testCorpus...)
+	<span style="color: #008000">// transform the query into the same dimensional space - any terms in </span>
+	<span style="color: #008000">// the query not in the original training data the model was fitted to </span>
+	<span style="color: #008000">// will be ignored</span>
+	queryMat, _ := vectoriser.Transform(query)
+	calcCosine(queryMat, matrix, testCorpus, <span style="color: #a31515">&quot;Raw TF&quot;</span>)
+
+	tfidfmat, _ := transformer.FitTransform(matrix)
+	tfidfquery, _ := transformer.Transform(queryMat)
+	calcCosine(tfidfquery, tfidfmat, testCorpus, <span style="color: #a31515">&quot;TF-IDF&quot;</span>)
+
+	lsi, _ := reducer.FitTransform(tfidfmat)
+	queryVector, _ := reducer.Transform(tfidfquery)
+	calcCosine(queryVector, lsi, testCorpus, <span style="color: #a31515">&quot;LSA&quot;</span>)
+}
+
+<span style="color: #0000ff">func</span> calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []<span style="color: #2b91af">string</span>, name <span style="color: #2b91af">string</span>) {
+	<span style="color: #008000">// iterate over document feature vectors (columns) in the LSI and </span>
+	<span style="color: #008000">// compare with the query vector for similarity.  Similarity is determined </span>
+	<span style="color: #008000">// by the difference between the angles of the vectors known as the cosine </span>
+	<span style="color: #008000">// similarity</span>
+	_, docs := tdmat.Dims()
+
+	fmt.Printf(<span style="color: #a31515">&quot;Comparing based on %s\n&quot;</span>, name)
+
+	<span style="color: #0000ff">for</span> i := 0; i &lt; docs; i++ {
+		queryVec := query.(mat.ColViewer).ColView(0)
+		docVec := tdmat.(mat.ColViewer).ColView(i)
+		similarity := nlp.CosineSimilarity(queryVec, docVec)
+		fmt.Printf(<span style="color: #a31515">&quot;Comparing &#39;%s&#39; = %f\n&quot;</span>, corpus[i], similarity)
+	}
+}
+</pre></div>
+
+<h2 id="wrapping-up">Wrapping up</h2>
+
+<p>We have looked at a number of ways to model text documents to support information retrieval each one building on the next.  We started with modelling documents as feature vectors of raw term frequencies which we then extended with tf-idf weighting.  We used tf-idf to weight the term frequencies according to how frequently the terms appeared across all the documents in the corpus thereby removing bias caused by commonly occuring words.  Finally we extended the model with Latent Semantic Analysis, applying Singular Value Decomposition to surface semantic meaning hidden beneath the term frequencies within the document feature vectors.</p>
+
+<p>I have really learnt a lot while implementing these algorithms both about machine learning concepts (and the requisite mathematics) and their applications.  There are a number of extensions to <a href="https://github.com/james-bowman/nlp">the library</a> that I intend to make both to extend my knowledge but also its usefulness including an implementation of <a href="https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation">LDA (Latent Dirichlet Allocation)</a> for effective topic extraction from the documents and possibly also implementations of clustering and classification algorithms like k-means, etc.</p>
+
+<p>If you have any experiences with using any of the algorithms I have described here or others that are related then please share your experiences in the comments section below.</p>
+
+<h2 id="references">References</h2>
+
+<ol>
+<li><a href="https://en.wikipedia.org/wiki/Latent_semantic_analysis">Wikipedia</a></li>
+<li><a href="http://people.ischool.berkeley.edu/~rosario/projects/LSI.pdf">Rosario, Barbara. Latent Semantic Indexing: An overview. INFOSYS 240 Spring 2000</a></li>
+<li><a href="http://www.scholarpedia.org/article/Latent_semantic_analysis">Latent Semantic Analysis, a scholarpedia article on LSA written by Tom Landauer, one of the creators of LSA.</a></li>
+<li><a href="http://webhome.cs.uvic.ca/~thomo/svd.pdf">Thomo, Alex. Latent Semantic Analysis (Tutorial).</a></li>
+<li><a href="http://nlp.stanford.edu/IR-book/html/htmledition/latent-semantic-indexing-1.html">Latent Semantic Indexing. Standford NLP Course</a></li>
+</ol>
+
+
+       
+    </section>
+
+
+  <footer class="post-footer">
+
+
+    
+    <figure class="author-image">
+        <a class="img" href="http://www.jamesbowman.me/" style="background-image: url(http://www.jamesbowman.me/selfportraitBWcirc.png)"><span class="hidden">James Bowman's Picture</span></a>
+    </figure>
+    
+
+    
+
+
+
+
+
+<section class="author">
+  <h4><a href="http://www.jamesbowman.me/">James Bowman</a></h4>
+  
+  <p>I love coding in Go, microservices, continuous delivery and DevOps. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.</p>
+  
+  <div class="author-meta">
+    <span class="author-location icon-location">London, UK</span>
+    <span class="author-link icon-link"><a href="http://www.jamesbowman.me">http://www.jamesbowman.me</a></span>
+  </div>
+</section>
+
+
+
+    
+<section class="share">
+  <h4>Share this post</h4>
+  <a class="icon-twitter" style="font-size: 1.4em" href="https://twitter.com/share?text=Semantic%20analysis%20of%20webpages%20with%20machine%20learning%20in%20Go&nbsp;-&nbsp;James%20Bowman&amp;url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fsemantic-analysis-of-webpages-with-machine-learning-in-go%2f"
+      onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+      <span class="hidden">Twitter</span>
+  </a>
+  <a class="icon-facebook" style="font-size: 1.4em" href="https://www.facebook.com/sharer/sharer.php?u=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fsemantic-analysis-of-webpages-with-machine-learning-in-go%2f"
+      onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+      <span class="hidden">Facebook</span>
+  </a>
+  <a class="icon-pinterest" style="font-size: 1.4em" href="http://pinterest.com/pin/create/button/?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fsemantic-analysis-of-webpages-with-machine-learning-in-go%2f&amp;description=Semantic%20analysis%20of%20webpages%20with%20machine%20learning%20in%20Go"
+      onclick="window.open(this.href, 'pinterest-share','width=580,height=296');return false;">
+      <span class="hidden">Pinterest</span>
+  </a>
+  <a class="icon-google-plus" style="font-size: 1.4em" href="https://plus.google.com/share?url=http%3a%2f%2fwww.jamesbowman.me%2fpost%2fsemantic-analysis-of-webpages-with-machine-learning-in-go%2f"
+     onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+      <span class="hidden">Google+</span>
+  </a>
+</section>
+
+
+
+    
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_shortname = 'jamesebowman';
+  var disqus_url = 'http:\/\/www.jamesbowman.me\/post\/semantic-analysis-of-webpages-with-machine-learning-in-go\/';
+  (function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+  </footer>
+</article>
+
+</main>
+    <footer class="site-footer clearfix">
+        <section class="copyright"><a href="">James Bowman</a> All rights reserved 2017</section>
+        
+        <section class="poweredby">Proudly generated by <a class="icon-hugo" href="http://gohugo.io">HUGO</a>, with <a class="icon-theme" href="https://github.com/vjeantet/hugo-theme-casper">Casper</a> theme</section>
+        
+    </footer>
+    </div>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="http://www.jamesbowman.me/js/index.js"></script>
+    
+        
+<script type="text/javascript" src="//newsharecounts.s3-us-west-2.amazonaws.com/nsc.js"></script>
+
+    
+</body>
+</html>
+

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tools on James Bowman</title>
+    <link>http://www.jamesbowman.me/tags/tools/index.xml</link>
+    <description>Recent content in Tools on James Bowman</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <copyright>All rights reserved 2017</copyright>
+    <atom:link href="http://www.jamesbowman.me/tags/tools/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Continuous delivery tool landscape</title>
+      <link>http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/</link>
+      <pubDate>Mon, 30 Jan 2017 08:34:52 +0000</pubDate>
+      
+      <guid>http://www.jamesbowman.me/post/continuous-delivery-tool-landscape/</guid>
+      <description>
+
+&lt;p&gt;I have been having a lot of discussions recently about tooling to support continuous delivery and DevOps practices.  There is an incredible and ever increasing array of tools available for these practices.  Whilst a number of vendors have developed &lt;a href=&#34;https://dzone.com/articles/continuous-delivery-anti-patterns&#34;&gt;one-stop solutions or suites of integrated tools&lt;/a&gt;, many of the tools in the space tend to be tightly focused on addressing a particular problem.&lt;/p&gt;
+
+&lt;p&gt;Unfortunatley this can be confusing and overwhelming, especially to people starting out, making it difficult to know where to start and which tools to consider.  This can also lead to particular tools being used to solve problems where other types of tools may be better suited.  It is therefore important to consider tools within the context of the broader ecosystem and understand the role each one plays and the specific goal or problem(s) they aim to address.  With this in mind, I thought it might be useful to visualise the broader CD/DevOps tool landscape to provide some context around the available tools and how they each fit within it.&lt;/p&gt;
+
+&lt;p&gt;You can see the complete visualisation here:&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/post/cdlandscape/ContinuousDeliveryToolLandscape-fullsize.jpeg&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/post/cdlandscape/ContinuousDeliveryToolLandscape.jpeg&#34; alt=&#34;Continuous delivery tool landscape Jan 2017&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+
+&lt;p&gt;I divided the landscape up into 5 high-level phases broadly aligned to a generic application lifecycle: Collaborate, Build, Test, Deploy and Run.  Within each phase, I then attempted to categorise the types of tools available.  Some tools within the same category address slightly different problems and can be considered complimentary to one another e.g. Terraform and Puppet/Chef.  Conversely, some of the tools e.g. MS Team Foundation Server, Go CD, Docker, etc. could appear in multiple categories.  Where this is the case, I have tried to place them once, in the primary category for which they are known.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-is-not-covered&#34;&gt;What is not covered&lt;/h2&gt;
+
+&lt;p&gt;Whilst it would be great to show the entire landscape on one page some compromises had to be made and so some categories of tools were omitted.  These include:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Service Discovery and global Configuration stores e.g. Consul, ZooKeeper, etcd, etc.&lt;/li&gt;
+&lt;li&gt;Security management and monitoring tools (Privileged Account Management, intrusion detection, secret management and certificate management) e.g. CyberArk, Snort, Tripwire, Fortify, Vault, Let’s Encrypt, etc.&lt;/li&gt;
+&lt;li&gt;Static code analysis tools i.e. cyclometric complexity, coverage, quality, standards, etc.&lt;/li&gt;
+&lt;li&gt;Programming languages, tools and frameworks e.g. compilers, IDEs, Frameworks like DropWizard/Nancy/etc.&lt;/li&gt;
+&lt;li&gt;Mocking tools for testing e.g. Mockito&lt;/li&gt;
+&lt;li&gt;Quality Management tools e.g. HPE QC&lt;/li&gt;
+&lt;li&gt;Release Management tools e.g. LaunchDarkly&lt;/li&gt;
+&lt;li&gt;Cloud vendor specific tools &amp;amp; toolchains e.g. Cloudformation and CodeDeploy for AWS&lt;/li&gt;
+&lt;li&gt;Platform/Device specific development toolchains e.g. Native mobile apps, IoT, etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;wrap-up&#34;&gt;Wrap up&lt;/h2&gt;
+
+&lt;p&gt;The visualisation is not intended to be exhaustive or represent any form of recommendation or endorsement.  It would be interesting to hear other people&amp;rsquo;s perspectives and experiences.  Have you used other tools that belong in this visualisation?  Does the visualisation resonate with your own experiences and have you used some of the tools shown?  Are there any categories you feel missing?  If so, please comment and share your thoughts and experiences.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
