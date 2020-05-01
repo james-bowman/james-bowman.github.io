@@ -114,8 +114,8 @@
     },
     "headline": "Optimising algorithms in Go for machine learning",
     "name": "Optimising algorithms in Go for machine learning",
-    "wordCount":  1654 ,
-    "timeRequired": "PT8M",
+    "wordCount":  1318 ,
+    "timeRequired": "PT7M",
     "inLanguage": {
       "@type": "Language",
       "alternateName": "en"
@@ -184,6 +184,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             
             <li class="nav-opened" role="presentation">
             	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
             </li>
         
             
@@ -261,21 +266,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <p>As can be seen in the code snippet below, the TF-IDF transformer maintains a matrix internally,which is used to transform matrices containing raw term freqencies(tf) into weighted tf-idf values (term frequency - inverse document frequencies).  The transform is simply multiplied by the input tf matrix to produce the tf-idf matrix.  Please refer to the <a href="http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/">previous blog post for a more in depth description of TF-IDF</a>.</p>
 
 <p>The transform matrix is a <a href="https://en.wikipedia.org/wiki/Diagonal_matrix#Symmetric_diagonal_matrices">symmetric diagonal matrix</a> and so will have as many rows and columns as there were unique terms/words in the training data set.  For a representative sample of 3000 articles from internet sites, I found the number of unique terms was typically around 30,000 which would require a 30,000 x 30,000 transform matrix.  Therefore the TF-IDF transform is a 30,000 x 30,000 matrix with elements of type float64 which will require approximately 7GB of memory.  Ironically the majority of elements within this matrix will contain zeros, in fact, only values along the diagonal (from top left to bottom right) will be non-zero.  There is clearly scope to optimise its memory use.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">type</span> TfidfTransformer1 <span style="color: #0000ff">struct</span> {
+type TfidfTransformer1 struct {
     transform *mat64.Dense
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer1) Fit(mat mat64.Matrix) Transformer {
+func (t *TfidfTransformer1) Fit(mat mat64.Matrix) Transformer {
     m, n := mat.Dims()
 
-    <span style="color: #008000">// build a diagonal matrix from array of term weighting values for subsequent</span>
-    <span style="color: #008000">// multiplication with term document matrics</span>
-    t.transform = mat64.NewDense(m, m, <span style="color: #0000ff">nil</span>)
+    // build a diagonal matrix from array of term weighting values for subsequent
+    // multiplication with term document matrics
+    t.transform = mat64.NewDense(m, m, nil)
 
-    <span style="color: #0000ff">for</span> i := 0; i &lt; m; i++ {
+    for i := 0; i < m; i++ {
         df := 0
-        <span style="color: #0000ff">for</span> j := 0; j &lt; n; j++ {
-            <span style="color: #0000ff">if</span> mat.At(i, j) != 0 {
+        for j := 0; j < n; j++ {
+            if mat.At(i, j) != 0 {
                 df++
             }
         }
@@ -283,41 +288,40 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         t.transform.Set(i, i, idf)
     }
 
-    <span style="color: #0000ff">return</span> t
+    return t
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer1) Transform(mat mat64.Matrix) (*mat64.Dense, <span style="color: #2b91af">error</span>) {
+func (t *TfidfTransformer1) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+    product := mat64.NewDense(m, n, nil)
 
-    <span style="color: #008000">// simply multiply the matrix by our idf transform (the diagonal matrix of term weights)</span>
+    // simply multiply the matrix by our idf transform (the diagonal matrix of term weights)
     product.Product(t.transform, mat)
 
-    <span style="color: #0000ff">return</span> product, <span style="color: #0000ff">nil</span>
+    return product, nil
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer1) FitTransform(mat mat64.Matrix) (*mat64.Dense, <span style="color: #2b91af">error</span>) {
-    <span style="color: #0000ff">return</span> t.Fit(mat).Transform(mat)
+func (t *TfidfTransformer1) FitTransform(mat mat64.Matrix) (*mat64.Dense, error) {
+    return t.Fit(mat).Transform(mat)
 }
-</pre></div>
 
 <p>My initial thought was to use a sparse matrix instead of the dense matrix implementation I was using.  A sparse matrix could more efficiently store a matrix mostly comprised of zeros, storing only the non-zero values.  Unfortunately the gonum matrix library I am using does not currently have a sparse matrix implementation.</p>
 
 <p>As an alternative approach, I considered simply storing the non-zero idf (term weights) values as an array of float64 values and then individually multiplying every element within the input raw tf matrix by its corresponding term weight from the array.  The code for this implementation called TfidfTransformer2 is shown below.  Note the differences in the <code>Fit()</code> method where we no longer build a symmetric diagonal transform matrix and simply keep the array of term weights.  Also, the <code>Transform()</code> method is now changed to simply iterate over every matrix element and multiply its value by the corresponding term weight from the array.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">type</span> TfidfTransformer2 <span style="color: #0000ff">struct</span> {
-    weights []<span style="color: #2b91af">float64</span>
+type TfidfTransformer2 struct {
+    weights []float64
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer2) Fit(mat mat64.Matrix) Transformer {
+func (t *TfidfTransformer2) Fit(mat mat64.Matrix) Transformer {
     m, n := mat.Dims()
 
-    <span style="color: #008000">// simply capture term weights as an array</span>
-    t.weights = make([]<span style="color: #2b91af">float64</span>, m)
+    // simply capture term weights as an array
+    t.weights = make([]float64, m)
 
-    <span style="color: #0000ff">for</span> i := 0; i &lt; m; i++ {
+    for i := 0; i < m; i++ {
         df := 0
-        <span style="color: #0000ff">for</span> j := 0; j &lt; n; j++ {
-            <span style="color: #0000ff">if</span> mat.At(i, j) != 0 {
+        for j := 0; j < n; j++ {
+            if mat.At(i, j) != 0 {
                 df++
             }
         }
@@ -325,104 +329,101 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         t.weights[i] = idf
     }
 
-    <span style="color: #0000ff">return</span> t
+    return t
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer2) Transform(mat mat64.Matrix) (*mat64.Dense, <span style="color: #2b91af">error</span>) {
+func (t *TfidfTransformer2) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+    product := mat64.NewDense(m, n, nil)
 
-    <span style="color: #008000">// iterate over every element of the matrix in turn and </span>
-    <span style="color: #008000">// multiply the element value by the corresponding term weight</span>
-    <span style="color: #0000ff">for</span> i := 0; i &lt; m; i++ {
-        <span style="color: #0000ff">for</span> j := 0; j &lt; n; j++ {
+    // iterate over every element of the matrix in turn and 
+    // multiply the element value by the corresponding term weight
+    for i := 0; i < m; i++ {
+        for j := 0; j < n; j++ {
             product.Set(i, j, mat.At(i, j) * t.weights[i])
         }
     }
 
-    <span style="color: #0000ff">return</span> product, <span style="color: #0000ff">nil</span>
+    return product, nil
 }
 
-<span style="color: #0000ff">func</span> (t *TfidfTransformer2) FitTransform(mat mat64.Matrix) (*mat64.Dense, <span style="color: #2b91af">error</span>) {
-    <span style="color: #0000ff">return</span> t.Fit(mat).Transform(mat)
+func (t *TfidfTransformer2) FitTransform(mat mat64.Matrix) (*mat64.Dense, error) {
+    return t.Fit(mat).Transform(mat)
 }
-</pre></div>
 
 <p>This second approach would be considerably more memory efficient but I had some concerns over performance, specifically how well iterating over every matrix element, using nested loops, outside of the heavily optimised LAPACK/BLAS libraries would perform.</p>
 
 <p>Then I found a matrix <code>Apply()</code> method within the gonum/mat64 library that would apply a function to every element within the matrix.  Unlike the nested loop approach, this would allow the optimised LAPACK/BLAS libraries to handle the iteration so should theoretically be more performant.  This implementation would be identical to the <code>TfidfTransformer2</code> above save for the <code>Transform()</code> method where the matrix <code>Apply()</code> method is used instead of nested loops.  The differing <code>Transform()</code> method is shown below.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, <span style="color: #2b91af">error</span>) {
+func (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+    product := mat64.NewDense(m, n, nil)
 
-    <span style="color: #008000">// apply a function to every element of the matrix in turn which</span>
-    <span style="color: #008000">// multiplies the element value by the corresponding term weight</span>
-    product.Apply(<span style="color: #0000ff">func</span>(i, j <span style="color: #2b91af">int</span>, v <span style="color: #2b91af">float64</span>) <span style="color: #2b91af">float64</span> {
-        <span style="color: #0000ff">return</span> (v * t.weights[i])
+    // apply a function to every element of the matrix in turn which
+    // multiplies the element value by the corresponding term weight
+    product.Apply(func(i, j int, v float64) float64 {
+        return (v * t.weights[i])
     }, mat)
 
-    <span style="color: #0000ff">return</span> product, <span style="color: #0000ff">nil</span>
+    return product, nil
 }
-</pre></div>
 
 <h3 id="benchmarks">Benchmarks</h3>
 
 <p>To confirm our hypothesis that the new implementations will outperform the current matrix transform based implementation we will run some benchmarks using the inbuilt benchmark functionality inside Go&rsquo;s <code>testing</code> package.</p>
 
 <p>Implementing a benchmark in Go is much the same as implementing a test except the function name is prefixed with <code>Benchmark</code> rather than <code>Test</code>.  Here are separate benchmark implementations for the <code>Fit()</code>, <code>Transform()</code> and <code>FitTransform()</code> methods exercised for each of the 3 algorithm implementations.  As the <code>Fit()</code> method is identical between implementation 2 (TfidfTransformer2) and 3 (TfidfTransformer3) I have not bothered to benchmark both instead just benchmarking the <code>Fit()</code> method from implementation 2.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> benchmarkFit(t Transformer, m, n <span style="color: #2b91af">int</span>, b *testing.B) {
-    mat := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+func benchmarkFit(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
 
     b.ResetTimer()
-    <span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+    for n := 0; n < b.N; n++ {
         t.Fit(mat)
     }
 }
 
-<span style="color: #0000ff">func</span> benchmarkFitTransform(t Transformer, m, n <span style="color: #2b91af">int</span>, b *testing.B) {
-    mat := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+func benchmarkFitTransform(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
 
     b.ResetTimer()
-    <span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+    for n := 0; n < b.N; n++ {
         t.FitTransform(mat)
     }
 }
 
-<span style="color: #0000ff">func</span> benchmarkTransform(t Transformer, m, n <span style="color: #2b91af">int</span>, b *testing.B) {
-    mat := mat64.NewDense(m, n, <span style="color: #0000ff">nil</span>)
+func benchmarkTransform(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
     t.Fit(mat)
 
     b.ResetTimer()
-    <span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+    for n := 0; n < b.N; n++ {
         t.Transform(mat)
     }
 }
 
-<span style="color: #0000ff">func</span> BenchmarkTFIDF1Fit30000x3000(b *testing.B) {
-    benchmarkFit(&amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1Fit30000x3000(b *testing.B) {
+    benchmarkFit(&TfidfTransformer1{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF1Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&TfidfTransformer1{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF1FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&TfidfTransformer1{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF2Fit30000x3000(b *testing.B) {
-    benchmarkFit(&amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2Fit30000x3000(b *testing.B) {
+    benchmarkFit(&TfidfTransformer2{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF2Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&TfidfTransformer2{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF2FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&TfidfTransformer2{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF3Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;TfidfTransformer3{}, 30000, 3000, b)
+func BenchmarkTFIDF3Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&TfidfTransformer3{}, 30000, 3000, b)
 }
-<span style="color: #0000ff">func</span> BenchmarkTFIDF3FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;TfidfTransformer3{}, 30000, 3000, b)
+func BenchmarkTFIDF3FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&TfidfTransformer3{}, 30000, 3000, b)
 }
-</pre></div>
 
 <p>The benchmarks are run in the same way as tests except that the <code>-bench</code> option is used to express a regular expression matching the names of benchmark functions to run.  The regular expression <code>.</code> will match all benchmarks or as in the output below, <code>30000</code> will match and run all benchmarks with 30000 in the function name.  The <code>-benchmem</code> option will output memory allocations during the benchmark.  Here are the results of the benchmarks.</p>
 

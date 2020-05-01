@@ -116,7 +116,7 @@
     },
     "headline": "Continuous delivery pipeline for blogging with Hugo and Wercker",
     "name": "Continuous delivery pipeline for blogging with Hugo and Wercker",
-    "wordCount":  1431 ,
+    "wordCount":  1425 ,
     "timeRequired": "PT7M",
     "inLanguage": {
       "@type": "Language",
@@ -179,6 +179,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             
             <li class="nav-opened" role="presentation">
             	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
             </li>
         
             
@@ -362,21 +367,20 @@ git push origin master
 <p>Now we can setup our pipeline by creating a new application.  Select <code>Create</code> and select <code>Application</code>.  Work through the process of setting up a new application selecting GitHub as the Git provider, and choosing &lsquo;blog&rsquo; as the repository.  Select yourself as the owner and configure access so that <code>wercker will checkout the code without using an SSH key</code>.  Finally uncheck the <code>Docker enabled</code> checkbox and click next step.  You can finally choose whether to make your pipeline public or private.  This is a personal choice and has no impact on how things work.  Werker will now start building your code.</p>
 
 <p>Now we need to create a <code>wercker.yml</code> file in the root of the content workspace (/blog folder).  This file should contain the following:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span>box: wercker/default
+box: wercker/default
 build:
     steps:
         - arjen/hugo-build:
         version: 0.14
-        theme: &lt;theme folder name&gt;
+        theme: <theme folder name>
         config: config.toml
 deploy:
     steps:
         - lukevivier/gh-pages@0.2.1:
         token: $GIT_TOKEN
-        domain: &lt;GitHub username&gt;.github.io
+        domain: <GitHub username>.github.io
         basedir: public
-        repo: &lt;GitHub username&gt;/&lt;GitHub username&gt;.github.io
-</pre></div>
+        repo: <GitHub username>/<GitHub username>.github.io
 
 <p>Be careful to replace any text within &lt;&gt; with your actual values e.g. <code>&lt;GitHub username&gt;</code> should be replaced with your specific GitHub username.  Once finished, commit and push the wercker.yml file to GitHub:</p>
 

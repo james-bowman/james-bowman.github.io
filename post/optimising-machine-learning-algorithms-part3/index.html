@@ -112,7 +112,7 @@
     },
     "headline": "Optimising algorithms in Go for machine learning - Part 3: The hashing trick",
     "name": "Optimising algorithms in Go for machine learning - Part 3: The hashing trick",
-    "wordCount":  1588 ,
+    "wordCount":  1525 ,
     "timeRequired": "PT8M",
     "inLanguage": {
       "@type": "Language",
@@ -182,6 +182,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             
             <li class="nav-opened" role="presentation">
             	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
             </li>
         
             
@@ -287,45 +292,45 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <h2 id="implementation">Implementation</h2>
 
 <p>Here is the code for the <code>HashingVectoriser</code> that implements the hashing trick.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">type</span> HashingVectoriser <span style="color: #0000ff">struct</span> {
-	NumFeatures   <span style="color: #2b91af">int</span>
+type HashingVectoriser struct {
+	NumFeatures   int
 	wordTokeniser *regexp.Regexp
-	stopWords     <span style="color: #0000ff">map</span>[<span style="color: #2b91af">string</span>]<span style="color: #2b91af">bool</span>
+	stopWords     map[string]bool
 }
 
-<span style="color: #0000ff">func</span> NewHashingVectoriser(removeStopwords <span style="color: #2b91af">bool</span>, numFeatures <span style="color: #2b91af">int</span>) *HashingVectoriser {
-	<span style="color: #0000ff">var</span> stop <span style="color: #0000ff">map</span>[<span style="color: #2b91af">string</span>]<span style="color: #2b91af">bool</span>
+func NewHashingVectoriser(removeStopwords bool, numFeatures int) *HashingVectoriser {
+	var stop map[string]bool
 
-	<span style="color: #0000ff">if</span> removeStopwords {
-		stop = make(<span style="color: #0000ff">map</span>[<span style="color: #2b91af">string</span>]<span style="color: #2b91af">bool</span>)
-		<span style="color: #0000ff">for</span> _, word := <span style="color: #0000ff">range</span> stopWords {
-			stop[word] = <span style="color: #0000ff">true</span>
+	if removeStopwords {
+		stop = make(map[string]bool)
+		for _, word := range stopWords {
+			stop[word] = true
 		}
 	}
-	<span style="color: #0000ff">return</span> &amp;HashingVectoriser{
+	return &HashingVectoriser{
 		NumFeatures:   numFeatures,
-		wordTokeniser: regexp.MustCompile(<span style="color: #a31515">&quot;\\w+&quot;</span>),
+		wordTokeniser: regexp.MustCompile("\\w+"),
 		stopWords:     stop,
 	}
 }
 
-<span style="color: #0000ff">func</span> (v *HashingVectoriser) Fit(train ...<span style="color: #2b91af">string</span>) *HashingVectoriser {
-	<span style="color: #008000">// Do nothing - the HashingVectoriser is stateless and does not</span>
-	<span style="color: #008000">// require training.  Method included for compatibility with</span>
-	<span style="color: #008000">// other vectorisers</span>
-	<span style="color: #0000ff">return</span> v
+func (v *HashingVectoriser) Fit(train ...string) *HashingVectoriser {
+	// Do nothing - the HashingVectoriser is stateless and does not
+	// require training.  Method included for compatibility with
+	// other vectorisers
+	return v
 }
 
-<span style="color: #0000ff">func</span> (v *HashingVectoriser) Transform(docs ...<span style="color: #2b91af">string</span>) (mat64.Matrix, <span style="color: #2b91af">error</span>) {
+func (v *HashingVectoriser) Transform(docs ...string) (mat64.Matrix, error) {
 	mat := sparse.NewDOK(v.NumFeatures, len(docs))
 
-	<span style="color: #0000ff">for</span> d, doc := <span style="color: #0000ff">range</span> docs {
+	for d, doc := range docs {
 		words := v.tokenise(doc)
 
-		<span style="color: #0000ff">for</span> _, word := <span style="color: #0000ff">range</span> words {
-			<span style="color: #0000ff">if</span> v.stopWords != <span style="color: #0000ff">nil</span> {
-				<span style="color: #0000ff">if</span> v.stopWords[word] {
-					<span style="color: #0000ff">continue</span>
+		for _, word := range words {
+			if v.stopWords != nil {
+				if v.stopWords[word] {
+					continue
 				}
 			}
 			h := murmur3.Sum32([]byte(word))
@@ -334,61 +339,59 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 			mat.Set(i, d, mat.At(i, d)+1)
 		}
 	}
-	<span style="color: #0000ff">return</span> mat, <span style="color: #0000ff">nil</span>
+	return mat, nil
 }
 
-<span style="color: #0000ff">func</span> (v *HashingVectoriser) FitTransform(docs ...<span style="color: #2b91af">string</span>) (mat64.Matrix, <span style="color: #2b91af">error</span>) {
-	<span style="color: #0000ff">return</span> v.Transform(docs...)
+func (v *HashingVectoriser) FitTransform(docs ...string) (mat64.Matrix, error) {
+	return v.Transform(docs...)
 }
 
-<span style="color: #0000ff">func</span> (v *HashingVectoriser) tokenise(text <span style="color: #2b91af">string</span>) []<span style="color: #2b91af">string</span> {
-	<span style="color: #008000">// convert content to lower case</span>
+func (v *HashingVectoriser) tokenise(text string) []string {
+	// convert content to lower case
 	c := strings.ToLower(text)
 
-	<span style="color: #008000">// match whole words, removing any punctuation/whitespace</span>
+	// match whole words, removing any punctuation/whitespace
 	words := v.wordTokeniser.FindAllString(c, -1)
 
-	<span style="color: #0000ff">return</span> words
+	return words
 }
-</pre></div>
 
 <p>We shall do some basic benchmarking of the <code>HashingVectoriser</code> against our exising <code>CountVectoriser</code> implementation.  Whilst the main advantage of the HashingVectoriser is that it removes the dependency on the training data set to train the model with a complete vocabulary, we want to ensure the performance and memory consumption are at least comparable to the <code>CountVectoriser</code>.</p>
 
 <p>We shall benchmark the <code>Transform()</code> method of the <code>HashingVectoriser</code> and compare this against benchmarks for both the <code>Transform()</code> and <code>FitTransform()</code> methods of <code>CountVectoriser</code>.  This will allow comparison of the raw transforms for both algorithms but also to see any savings achieved by not having to train the vocabulary (Fitting).</p>
 
 <p>Here is the benchmarking code which uses <a href="https://golang.org/pkg/testing/#hdr-Benchmarks">Golang&rsquo;s inbuilt benchmarking functionality</a>.  The benchmarks make use of the 20 Newsgroups dataset as used in Scikit Learn.  In this case, we are using the entire dataset rather than a subset as in the last article.  This dataset contains 19,998 documents comprising a vocabulary of 209,412 unique words.  Our CountVectoriser will create a term document matrix 209,412 rows x 19,998 columns and a density of 0.1%.  We shall set the vector dimensionality for the <code>HashingVectoriser</code> to 1,000,000 rows.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #008000">// Benchmark CountVectoriser vs HashingVectoriser</span>
-<span style="color: #0000ff">func</span> BenchmarkNLPCountVectoriserTransform(b *testing.B) {
+// Benchmark CountVectoriser vs HashingVectoriser
+func BenchmarkNLPCountVectoriserTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewCountVectoriser(<span style="color: #0000ff">false</span>)
+	vect := nlp.NewCountVectoriser(false)
 	vect.Fit(files...)
 
 	b.ResetTimer()
-	<span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+	for n := 0; n < b.N; n++ {
 		mat, _ := vect.Transform(files...)
 	}
 }
 
-<span style="color: #0000ff">func</span> BenchmarkNLPCountVectoriserFitTransform(b *testing.B) {
+func BenchmarkNLPCountVectoriserFitTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewCountVectoriser(<span style="color: #0000ff">false</span>)
+	vect := nlp.NewCountVectoriser(false)
 
 	b.ResetTimer()
-	<span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+	for n := 0; n < b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 	}
 }
 
-<span style="color: #0000ff">func</span> BenchmarkNLPHashingVectoriserFitTransform(b *testing.B) {
+func BenchmarkNLPHashingVectoriserFitTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewHashingVectoriser(<span style="color: #0000ff">false</span>, 1000000)
+	vect := nlp.NewHashingVectoriser(false, 1000000)
 
 	b.ResetTimer()
-	<span style="color: #0000ff">for</span> n := 0; n &lt; b.N; n++ {
+	for n := 0; n < b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 	}
 }
-</pre></div>
 
 <p>And here are the results.</p>
 

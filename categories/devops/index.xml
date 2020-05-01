@@ -276,21 +276,20 @@ git push origin master
 &lt;p&gt;Now we can setup our pipeline by creating a new application.  Select &lt;code&gt;Create&lt;/code&gt; and select &lt;code&gt;Application&lt;/code&gt;.  Work through the process of setting up a new application selecting GitHub as the Git provider, and choosing &amp;lsquo;blog&amp;rsquo; as the repository.  Select yourself as the owner and configure access so that &lt;code&gt;wercker will checkout the code without using an SSH key&lt;/code&gt;.  Finally uncheck the &lt;code&gt;Docker enabled&lt;/code&gt; checkbox and click next step.  You can finally choose whether to make your pipeline public or private.  This is a personal choice and has no impact on how things work.  Werker will now start building your code.&lt;/p&gt;
 
 &lt;p&gt;Now we need to create a &lt;code&gt;wercker.yml&lt;/code&gt; file in the root of the content workspace (/blog folder).  This file should contain the following:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;box: wercker/default
+box: wercker/default
 build:
     steps:
         - arjen/hugo-build:
         version: 0.14
-        theme: &amp;lt;theme folder name&amp;gt;
+        theme: &lt;theme folder name&gt;
         config: config.toml
 deploy:
     steps:
         - lukevivier/gh-pages@0.2.1:
         token: $GIT_TOKEN
-        domain: &amp;lt;GitHub username&amp;gt;.github.io
+        domain: &lt;GitHub username&gt;.github.io
         basedir: public
-        repo: &amp;lt;GitHub username&amp;gt;/&amp;lt;GitHub username&amp;gt;.github.io
-&lt;/pre&gt;&lt;/div&gt;
+        repo: &lt;GitHub username&gt;/&lt;GitHub username&gt;.github.io
 
 &lt;p&gt;Be careful to replace any text within &amp;lt;&amp;gt; with your actual values e.g. &lt;code&gt;&amp;lt;GitHub username&amp;gt;&lt;/code&gt; should be replaced with your specific GitHub username.  Once finished, commit and push the wercker.yml file to GitHub:&lt;/p&gt;
 

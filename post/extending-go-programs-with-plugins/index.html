@@ -192,6 +192,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         
             
             <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
             	<a href="/about-james-bowman">About me</a>
             </li>
         
@@ -269,9 +274,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <h2 id="support-in-other-languages">Support in other languages</h2>
 
 <p>In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &lsquo;plugged&rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span>Class clazz = Class.forName(fullyQualifiedClassName);				
+Class clazz = Class.forName(fullyQualifiedClassName);				
 Object product = clazz.newInstance();
-</pre></div>
 
 <p>Taking this one step further, Java has a set of conventions for creating and loading plugins called <a href="https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html">SPI (Service Provider Interface)</a>.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.</p>
 
@@ -352,20 +356,20 @@ Object product = clazz.newInstance();
 <h3 id="the-init-function">The init() function</h3>
 
 <p>Whenever a package is imported, any functions called <code>init()</code> in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;mypackage&quot;</span>
+package "mypackage"
 
-<span style="color: #0000ff">func</span> init() {
+func init() {
 	
 }
-</pre></div>
 
 <h3 id="anonymous-underscore-imports">Anonymous (underscore) imports</h3>
 
 <p>The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.</p>
 
 <p>Unfortunately, we need to import a package in order for the Go compiler to execute any <code>init()</code> functions in that package, but often, we don&rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">import</span> _ <span style="color: #a31515">&quot;mypackage&quot;</span>
-</pre></div>
+
+import _ "mypackage"
+
 
 <h3 id="putting-it-all-together">Putting it all together</h3>
 
@@ -379,42 +383,40 @@ repo/plugins/third-party/
 <p>With this structure, the <code>repo/</code> folder would be the <code>main</code> package for the application.  The <code>repo/plugins/</code> package would contain generic code to support third party plugins and the <code>repo/plugins/third-party/</code> package would be where the actual plugins would be placed by third parties.</p>
 
 <p>In one of the files inside <code>repo/</code> there should be an anonymous import for <code>repo/plugins/third-party</code> as shown in the code snippet below:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;main&quot;</span>
+package "main"
 
-<span style="color: #0000ff">import</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
-<span style="color: #0000ff">import</span> _ <span style="color: #a31515">&quot;repo/plugins/third-party&quot;</span>
-</pre></div>
+import "repo/plugins"
+import _ "repo/plugins/third-party"
+
 
 <p>The <code>repo/plugins/</code> package should contain a file containing the following code:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
+package "repo/plugins"
 
-<span style="color: #008000">// define type for plugin - in this case it is just a function but it could be an interface</span>
-<span style="color: #0000ff">type</span> plugInFunc <span style="color: #0000ff">func</span>(param <span style="color: #2b91af">int</span>) <span style="color: #2b91af">string</span>
+// define type for plugin - in this case it is just a function but it could be an interface
+type plugInFunc func(param int) string
 
-<span style="color: #008000">// map to store registered plugins</span>
-<span style="color: #0000ff">var</span> registry <span style="color: #0000ff">map</span>[<span style="color: #2b91af">string</span>]plugInFunc
+// map to store registered plugins
+var registry map[string]plugInFunc
 
-<span style="color: #008000">// Register plugins</span>
-<span style="color: #0000ff">func</span> Register(name <span style="color: #2b91af">string</span>, plugIn plugInFunc) {
+// Register plugins
+func Register(name string, plugIn plugInFunc) {
 	registry[name] = plugIn
 }
-</pre></div>
 
 <p>This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The <code>registry</code> is simply a map to store plugins registered using the exported <code>Register(string, plugInFunc)</code> function.</p>
 
 <p>Finally new plugins should be placed within the <code>repo/plugins/third-party/</code> package and should be structured as in the following code snippet:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> <span style="color: #a31515">&quot;repo/plugins/third-party&quot;</span>
+package "repo/plugins/third-party"
 
-<span style="color: #0000ff">import</span> <span style="color: #a31515">&quot;repo/plugins&quot;</span>
+import "repo/plugins"
 
-<span style="color: #0000ff">func</span> init() {
-	plugins.Register(<span style="color: #a31515">&quot;myPlugin&quot;</span>, myFunction)
+func init() {
+	plugins.Register("myPlugin", myFunction)
 }
 
-<span style="color: #0000ff">func</span> myFunction(param <span style="color: #2b91af">int</span>) <span style="color: #2b91af">string</span> {
-	<span style="color: #008000">// plugin functionality</span>
+func myFunction(param int) string {
+	// plugin functionality
 }
-</pre></div>
 
 
        

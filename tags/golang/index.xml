@@ -24,9 +24,8 @@
 &lt;h2 id=&#34;support-in-other-languages&#34;&gt;Support in other languages&lt;/h2&gt;
 
 &lt;p&gt;In other languages, plugins are well supported and relatively easy to implement.  In Java for example, concrete implementations of an interface can be dynamically loaded and instantiated by reflection as shown in the snippet below.  Different implementations can be &amp;lsquo;plugged&amp;rsquo; in simply by specifying the fully qualified name of the implementing class during reflection and ensuring it is defined on the CLASSPATH.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;Class clazz = Class.forName(fullyQualifiedClassName);				
+Class clazz = Class.forName(fullyQualifiedClassName);				
 Object product = clazz.newInstance();
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Taking this one step further, Java has a set of conventions for creating and loading plugins called &lt;a href=&#34;https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html&#34;&gt;SPI (Service Provider Interface)&lt;/a&gt;.  This is used by Java itself to dynamically load XML library implementations.  Using the SPI, it is possible to simply place a new implementation on the CLASSPATH and it will be automatically picked up and used by the application dynamically at runtime.&lt;/p&gt;
 
@@ -107,20 +106,20 @@ Object product = clazz.newInstance();
 &lt;h3 id=&#34;the-init-function&#34;&gt;The init() function&lt;/h3&gt;
 
 &lt;p&gt;Whenever a package is imported, any functions called &lt;code&gt;init()&lt;/code&gt; in that package will be implicitly executed.  If there are more than one, they will all be executed, although Go provides no guarantees as to the order in which they will be called.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
+package &#34;mypackage&#34;
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
+func init() {
 	
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;h3 id=&#34;anonymous-underscore-imports&#34;&gt;Anonymous (underscore) imports&lt;/h3&gt;
 
 &lt;p&gt;The Go compiler will fail to compile code containing any unused imports in code.  Personally, I find this helpful as it forces me to clear up any imports that are redundant or no longer needed.  However, it does mean that in order for an import to be valid, a member of the package must be explicitly referenced and used somewhere in the code.&lt;/p&gt;
 
 &lt;p&gt;Unfortunately, we need to import a package in order for the Go compiler to execute any &lt;code&gt;init()&lt;/code&gt; functions in that package, but often, we don&amp;rsquo;t actually want to explicitly call any of the code within the package.  Luckily, the Go language includes a construct to cater for just this scenario - anonymous imports.  Anonymous imports are a way of telling the compiler to import a package that will not be explicitly referenced or used in the code.  The syntax is shown below - note the underscore between the import keyword and the package name.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;mypackage&amp;quot;&lt;/span&gt;
-&lt;/pre&gt;&lt;/div&gt;
+
+import _ &#34;mypackage&#34;
+
 
 &lt;h3 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h3&gt;
 
@@ -134,42 +133,40 @@ repo/plugins/third-party/
 &lt;p&gt;With this structure, the &lt;code&gt;repo/&lt;/code&gt; folder would be the &lt;code&gt;main&lt;/code&gt; package for the application.  The &lt;code&gt;repo/plugins/&lt;/code&gt; package would contain generic code to support third party plugins and the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package would be where the actual plugins would be placed by third parties.&lt;/p&gt;
 
 &lt;p&gt;In one of the files inside &lt;code&gt;repo/&lt;/code&gt; there should be an anonymous import for &lt;code&gt;repo/plugins/third-party&lt;/code&gt; as shown in the code snippet below:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;main&amp;quot;&lt;/span&gt;
+package &#34;main&#34;
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; _ &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
-&lt;/pre&gt;&lt;/div&gt;
+import &#34;repo/plugins&#34;
+import _ &#34;repo/plugins/third-party&#34;
+
 
 &lt;p&gt;The &lt;code&gt;repo/plugins/&lt;/code&gt; package should contain a file containing the following code:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+package &#34;repo/plugins&#34;
 
-&lt;span style=&#34;color: #008000&#34;&gt;// define type for plugin - in this case it is just a function but it could be an interface&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; plugInFunc &lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;
+// define type for plugin - in this case it is just a function but it could be an interface
+type plugInFunc func(param int) string
 
-&lt;span style=&#34;color: #008000&#34;&gt;// map to store registered plugins&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; registry &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]plugInFunc
+// map to store registered plugins
+var registry map[string]plugInFunc
 
-&lt;span style=&#34;color: #008000&#34;&gt;// Register plugins&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Register(name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, plugIn plugInFunc) {
+// Register plugins
+func Register(name string, plugIn plugInFunc) {
 	registry[name] = plugIn
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;This code essentially defines a type that plugins must conform to.  This could be an interface but in this case I have defined a function type.  The &lt;code&gt;registry&lt;/code&gt; is simply a map to store plugins registered using the exported &lt;code&gt;Register(string, plugInFunc)&lt;/code&gt; function.&lt;/p&gt;
 
 &lt;p&gt;Finally new plugins should be placed within the &lt;code&gt;repo/plugins/third-party/&lt;/code&gt; package and should be structured as in the following code snippet:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins/third-party&amp;quot;&lt;/span&gt;
+package &#34;repo/plugins/third-party&#34;
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;repo/plugins&amp;quot;&lt;/span&gt;
+import &#34;repo/plugins&#34;
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; init() {
-	plugins.Register(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;myPlugin&amp;quot;&lt;/span&gt;, myFunction)
+func init() {
+	plugins.Register(&#34;myPlugin&#34;, myFunction)
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; myFunction(param &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
-	&lt;span style=&#34;color: #008000&#34;&gt;// plugin functionality&lt;/span&gt;
+func myFunction(param int) string {
+	// plugin functionality
 }
-&lt;/pre&gt;&lt;/div&gt;
 </description>
     </item>
     
@@ -290,21 +287,20 @@ git push origin master
 &lt;p&gt;Now we can setup our pipeline by creating a new application.  Select &lt;code&gt;Create&lt;/code&gt; and select &lt;code&gt;Application&lt;/code&gt;.  Work through the process of setting up a new application selecting GitHub as the Git provider, and choosing &amp;lsquo;blog&amp;rsquo; as the repository.  Select yourself as the owner and configure access so that &lt;code&gt;wercker will checkout the code without using an SSH key&lt;/code&gt;.  Finally uncheck the &lt;code&gt;Docker enabled&lt;/code&gt; checkbox and click next step.  You can finally choose whether to make your pipeline public or private.  This is a personal choice and has no impact on how things work.  Werker will now start building your code.&lt;/p&gt;
 
 &lt;p&gt;Now we need to create a &lt;code&gt;wercker.yml&lt;/code&gt; file in the root of the content workspace (/blog folder).  This file should contain the following:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;box: wercker/default
+box: wercker/default
 build:
     steps:
         - arjen/hugo-build:
         version: 0.14
-        theme: &amp;lt;theme folder name&amp;gt;
+        theme: &lt;theme folder name&gt;
         config: config.toml
 deploy:
     steps:
         - lukevivier/gh-pages@0.2.1:
         token: $GIT_TOKEN
-        domain: &amp;lt;GitHub username&amp;gt;.github.io
+        domain: &lt;GitHub username&gt;.github.io
         basedir: public
-        repo: &amp;lt;GitHub username&amp;gt;/&amp;lt;GitHub username&amp;gt;.github.io
-&lt;/pre&gt;&lt;/div&gt;
+        repo: &lt;GitHub username&gt;/&lt;GitHub username&gt;.github.io
 
 &lt;p&gt;Be careful to replace any text within &amp;lt;&amp;gt; with your actual values e.g. &lt;code&gt;&amp;lt;GitHub username&amp;gt;&lt;/code&gt; should be replaced with your specific GitHub username.  Once finished, commit and push the wercker.yml file to GitHub:&lt;/p&gt;
 

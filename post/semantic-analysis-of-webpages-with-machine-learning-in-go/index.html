@@ -112,7 +112,7 @@
     },
     "headline": "Semantic analysis of webpages with machine learning in Go",
     "name": "Semantic analysis of webpages with machine learning in Go",
-    "wordCount":  2223 ,
+    "wordCount":  2201 ,
     "timeRequired": "PT11M",
     "inLanguage": {
       "@type": "Language",
@@ -182,6 +182,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             
             <li class="nav-opened" role="presentation">
             	<a href="/post">Archive</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
             </li>
         
             
@@ -395,67 +400,66 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <h2 id="go-implement-it-pun-intended">Go implement it (pun intended)</h2>
 
 <p>I have developed [Golang implementations for the machine learning algorithms described in this article and published them on Github][].  The implementations are based on papers and tutorials in the public domain and the structure of the code takes some inspiration from <a href="http://scikit-learn.org/stable/">Python&rsquo;s scikit-learn</a>.  Here is an example of how to use the library to output cosine similarities between the example query and document corpus used in this blog post following term frequency vectorisation, tf-idf transformation and SVD factorisation.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">package</span> main
+package main
 
-<span style="color: #0000ff">import</span> (
-	<span style="color: #a31515">&quot;fmt&quot;</span>
+import (
+	"fmt"
 
-	<span style="color: #a31515">&quot;gonum.org/v1/gonum/mat&quot;</span>
-	<span style="color: #a31515">&quot;github.com/james-bowman/nlp&quot;</span>
+	"gonum.org/v1/gonum/mat"
+	"github.com/james-bowman/nlp"
 )
 
-<span style="color: #0000ff">func</span> main() {
-	testCorpus := []<span style="color: #2b91af">string</span>{
-		<span style="color: #a31515">&quot;The quick brown fox jumped over the lazy dog&quot;</span>,
-		<span style="color: #a31515">&quot;hey diddle diddle, the cat and the fiddle&quot;</span>,
-		<span style="color: #a31515">&quot;the fast cunning brown fox liked the slow canine dog &quot;</span>,
-		<span style="color: #a31515">&quot;the little dog laughed to see such fun&quot;</span>,
-		<span style="color: #a31515">&quot;and the dish ran away with the spoon&quot;</span>,
+func main() {
+	testCorpus := []string{
+		"The quick brown fox jumped over the lazy dog",
+		"hey diddle diddle, the cat and the fiddle",
+		"the fast cunning brown fox liked the slow canine dog ",
+		"the little dog laughed to see such fun",
+		"and the dish ran away with the spoon",
 	}
 
-	query := <span style="color: #a31515">&quot;the cunning creature ran around the canine&quot;</span>
+	query := "the cunning creature ran around the canine"
 
-	vectoriser := nlp.NewCountVectoriser(<span style="color: #0000ff">false</span>)
+	vectoriser := nlp.NewCountVectoriser(false)
 	transformer := nlp.NewTfidfTransformer()
 
-	<span style="color: #008000">// set k (the number of dimensions following truncation) to 2</span>
+	// set k (the number of dimensions following truncation) to 2
 	reducer := nlp.NewTruncatedSVD(2)
 
-	<span style="color: #008000">// Fit and Transform the corpus into a term document matrix fitting the </span>
-	<span style="color: #008000">// model to the documents in the process</span>
+	// Fit and Transform the corpus into a term document matrix fitting the 
+	// model to the documents in the process
 	matrix, _ := vectoriser.FitTransform(testCorpus...)
-	<span style="color: #008000">// transform the query into the same dimensional space - any terms in </span>
-	<span style="color: #008000">// the query not in the original training data the model was fitted to </span>
-	<span style="color: #008000">// will be ignored</span>
+	// transform the query into the same dimensional space - any terms in 
+	// the query not in the original training data the model was fitted to 
+	// will be ignored
 	queryMat, _ := vectoriser.Transform(query)
-	calcCosine(queryMat, matrix, testCorpus, <span style="color: #a31515">&quot;Raw TF&quot;</span>)
+	calcCosine(queryMat, matrix, testCorpus, "Raw TF")
 
 	tfidfmat, _ := transformer.FitTransform(matrix)
 	tfidfquery, _ := transformer.Transform(queryMat)
-	calcCosine(tfidfquery, tfidfmat, testCorpus, <span style="color: #a31515">&quot;TF-IDF&quot;</span>)
+	calcCosine(tfidfquery, tfidfmat, testCorpus, "TF-IDF")
 
 	lsi, _ := reducer.FitTransform(tfidfmat)
 	queryVector, _ := reducer.Transform(tfidfquery)
-	calcCosine(queryVector, lsi, testCorpus, <span style="color: #a31515">&quot;LSA&quot;</span>)
+	calcCosine(queryVector, lsi, testCorpus, "LSA")
 }
 
-<span style="color: #0000ff">func</span> calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []<span style="color: #2b91af">string</span>, name <span style="color: #2b91af">string</span>) {
-	<span style="color: #008000">// iterate over document feature vectors (columns) in the LSI and </span>
-	<span style="color: #008000">// compare with the query vector for similarity.  Similarity is determined </span>
-	<span style="color: #008000">// by the difference between the angles of the vectors known as the cosine </span>
-	<span style="color: #008000">// similarity</span>
+func calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []string, name string) {
+	// iterate over document feature vectors (columns) in the LSI and 
+	// compare with the query vector for similarity.  Similarity is determined 
+	// by the difference between the angles of the vectors known as the cosine 
+	// similarity
 	_, docs := tdmat.Dims()
 
-	fmt.Printf(<span style="color: #a31515">&quot;Comparing based on %s\n&quot;</span>, name)
+	fmt.Printf("Comparing based on %s\n", name)
 
-	<span style="color: #0000ff">for</span> i := 0; i &lt; docs; i++ {
+	for i := 0; i < docs; i++ {
 		queryVec := query.(mat.ColViewer).ColView(0)
 		docVec := tdmat.(mat.ColViewer).ColView(i)
 		similarity := nlp.CosineSimilarity(queryVec, docVec)
-		fmt.Printf(<span style="color: #a31515">&quot;Comparing &#39;%s&#39; = %f\n&quot;</span>, corpus[i], similarity)
+		fmt.Printf("Comparing '%s' = %f\n", corpus[i], similarity)
 	}
 }
-</pre></div>
 
 <h2 id="wrapping-up">Wrapping up</h2>
 

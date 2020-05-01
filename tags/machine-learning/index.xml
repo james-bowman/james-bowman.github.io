@@ -22,24 +22,22 @@
 &lt;p&gt;A &lt;a href=&#34;https://en.wikipedia.org/wiki/Dot_product&#34;&gt;vector dot product&lt;/a&gt; is a very common kernel, or basic building block, for many computations used within scientific computing and machine learning e.g. matrix multiplication, cosine similarity, etc.  The dot product simply multiplies together the respective elements of two vectors and then adds all the results together to give a scalar output.&lt;/p&gt;
 
 &lt;p&gt;Here is an example of how this operation could look in code.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) {
-  &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i, v := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; x {
+func Dot(x []float64, y []float64) (dot float64) {
+  for i, v := range x {
     dot += v * y[i]
   }
-  &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt;
+  return
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;h2 id=&#34;1-sparse-vectors&#34;&gt;1. Sparse Vectors&lt;/h2&gt;
 
 &lt;p&gt;&lt;a href=&#34;https://www.quora.com/In-machine-learning-what-is-the-difference-between-sparse-vector-and-dense-vector&#34;&gt;Sparse vector formats&lt;/a&gt; store only the non-zero values of the vector, supporting optimisations for both memory use and performance.  This can yield significant gains in applications where the data is very sparse (mostly zeros) such as NLP (Natural Language Processing) and some machine learning applications.  For example, in NLP it is common to have vectors where 99% of the elements as zero.  A sparse vector therefore has 2 components: a &lt;code&gt;float64&lt;/code&gt; slice containing the non-zero values and an &lt;code&gt;int&lt;/code&gt; slice containing the indices of those non-zero values.  If we were to rewrite the example Dot function above so that one of the vectors, &lt;code&gt;x&lt;/code&gt;, is sparse (with &lt;code&gt;indx&lt;/code&gt; representing the indexes of the non-zero values) then it would look like this:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot1(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, indx []&lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) {
-  &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i, index := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; indx {
+func Dot1(x []float64, indx []int, y []float64) (dot float64) {
+  for i, index := range indx {
     dot += x[i] * y[index]
   }
-  &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt;
+  return
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;It should be clear from the code above that only the non-zero values of the sparse matrix &lt;code&gt;x&lt;/code&gt; are being processed, multiplying them by their respective elements from the dense vector &lt;code&gt;y&lt;/code&gt;.  Multiplying the zero values of &lt;code&gt;x&lt;/code&gt; by their respective elements of &lt;code&gt;y&lt;/code&gt; would result in zero and so is redundant as it would not affect the overall dot product.&lt;/p&gt;
 
@@ -61,41 +59,39 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  1
 &lt;h2 id=&#34;2-assembly-code&#34;&gt;2. Assembly code&lt;/h2&gt;
 
 &lt;p&gt;A full overview of &lt;a href=&#34;https://golang.org/doc/asm&#34;&gt;programming assembler with Go&lt;/a&gt; is beyond the scope of this blog post.  To implement our Dot funtion in assembler, we first need to define a prototype (the function definition, with no body) of the function within a &lt;code&gt;.go&lt;/code&gt; file within the package as follows:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Dot2 is a basic, literal assembler implementation of sparse dot product.&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; Dot2(x []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, indx []&lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, y []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, incy &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) (dot &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;)
-&lt;/pre&gt;&lt;/div&gt;
+// Dot2 is a basic, literal assembler implementation of sparse dot product.
+func Dot2(x []float64, indx []int, y []float64, incy int) (dot float64)
 
 &lt;p&gt;Next, we write the assembly code implementation of the function in a separate file with the suffix &lt;code&gt;_amd64.s&lt;/code&gt;.  It should be clear, this targets AMD64 compatible CPUs and if you wish to target an alternative CPU you would need to replace the &lt;code&gt;amd64&lt;/code&gt; substring in the suffix with the corresponding label for your CPU.  Here is an initial, basic assmbler implementation of the sparse dot product function:&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color: #008000&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;color: #008000&#34;&gt;// func Dot2(x []float64, indx []int, y []float64) (dot float64)&lt;/span&gt;
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot2(SB), NOSPLIT, &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;$&lt;/span&gt;0
-  &lt;span style=&#34;color: #008000&#34;&gt;// move supplied parameters into registers&lt;/span&gt;
+// func Dot2(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot2(SB), NOSPLIT, $0
+  // move supplied parameters into registers
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
-  MOVQ    indx+32(FP), AX       &lt;span style=&#34;color: #008000&#34;&gt;// len(indx)&lt;/span&gt;
+  MOVQ    indx+32(FP), AX       // len(indx)
 
-  XORL    R9, R9                &lt;span style=&#34;color: #008000&#34;&gt;// i = 0&lt;/span&gt;
-  XORPS   X0, X0                &lt;span style=&#34;color: #008000&#34;&gt;// dot = 0&lt;/span&gt;
+  XORL    R9, R9                // i = 0
+  XORPS   X0, X0                // dot = 0
 
 loop:
-  CMPQ    R9, AX                &lt;span style=&#34;color: #008000&#34;&gt;// for i &amp;lt; len(indx)&lt;/span&gt;
+  CMPQ    R9, AX                // for i &lt; len(indx)
   JGE     end
 
-  MOVQ    (SI)(R9*8), R10       &lt;span style=&#34;color: #008000&#34;&gt;// indx[i]&lt;/span&gt;
-  MOVSD   (R8)(R9*8), X1        &lt;span style=&#34;color: #008000&#34;&gt;// x[i]&lt;/span&gt;
-  INCQ    R9                    &lt;span style=&#34;color: #008000&#34;&gt;// i++&lt;/span&gt;
+  MOVQ    (SI)(R9*8), R10       // indx[i]
+  MOVSD   (R8)(R9*8), X1        // x[i]
+  INCQ    R9                    // i++
 
-  MULSD   (DX)(R10*8), X1       &lt;span style=&#34;color: #008000&#34;&gt;// X1 = x[i] * y[indx[i]]&lt;/span&gt;
-  ADDSD   X1, X0                &lt;span style=&#34;color: #008000&#34;&gt;// dot += X1&lt;/span&gt;
+  MULSD   (DX)(R10*8), X1       // X1 = x[i] * y[indx[i]]
+  ADDSD   X1, X0                // dot += X1
 
   JMP     loop
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;The first thing to note is the &lt;code&gt;#include&lt;/code&gt; directive which should be familiar to anyone who has ever done any C/C++ programming.  This include allows us to use human readable names for the function and branch labels within the code.  Functions are always declared as &lt;code&gt;TEXT ·Dot2(SB), NOSPLIT, $0&lt;/code&gt; where &lt;code&gt;Dot2&lt;/code&gt; represents the function name and the value &lt;code&gt;$0&lt;/code&gt; indicates the size of the data frame.  As we are not allocating any new memory - beyond what is passed into the function - we are using a size of 0 (the &lt;code&gt;$&lt;/code&gt; symbol denotes the &lt;code&gt;0&lt;/code&gt; that follows it is a literal constant).&lt;/p&gt;
 
@@ -135,10 +131,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  1
 &lt;h2 id=&#34;3-loop-inversion&#34;&gt;3. Loop inversion&lt;/h2&gt;
 
 &lt;p&gt;The first optimisation we will apply is called &lt;a href=&#34;https://en.wikipedia.org/wiki/Loop_inversion&#34;&gt;&lt;em&gt;loop inversion optimisation&lt;/em&gt;&lt;/a&gt;.  In essence, this optimisation exchanges the &lt;code&gt;for&lt;/code&gt; loop from our original implementation for a &lt;code&gt;do...while&lt;/code&gt; style loop where the condition is evaluated at the end of the loop.  As we are now not evaluating the loop criteria until the end, we will also need to precede the loop with a conditional check to cover the case where the loop should run zero times.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot3(x []float64, indx []int, y []float64) (dot float64)
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot3(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+// func Dot3(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot3(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -147,7 +143,7 @@ TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot3(S
   XORL    R9, R9
   XORPS   X0, X0
 
-  CMPQ    R9, AX            // if i &amp;gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; len(indx)
+  CMPQ    R9, AX            // if i &gt;= len(indx)
   JGE     end
 
 loop:
@@ -159,12 +155,11 @@ loop:
   ADDSD   X1, X0
 
   CMPQ    R9, AX
-  JL      loop              // do...while(i &amp;lt; len(indx))
+  JL      loop              // do...while(i &lt; len(indx))
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;We can see in the code above that the unconditional jump (&lt;code&gt;JMP loop&lt;/code&gt;) instruction from our previous version &lt;code&gt;Dot2&lt;/code&gt; has been replaced with a conditional jump and the condition at the top of the loop has now been moved out of the loop entirely to precede it.  This has reduced the number of branch/jump instructions followed by 2 and almost halving the number of branch instructions processed (both followed and un-followed).  This is especially significant as branches are very expensive often causing &lt;a href=&#34;https://en.wikipedia.org/wiki/Pipeline_stall&#34;&gt;execution pipeline stalls&lt;/a&gt; and &lt;a href=&#34;https://en.wikipedia.org/wiki/Branch_misprediction&#34;&gt;branch mispredictions&lt;/a&gt;.&lt;/p&gt;
 
@@ -192,18 +187,18 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  1
 &lt;h2 id=&#34;4-loop-reversal&#34;&gt;4. Loop reversal&lt;/h2&gt;
 
 &lt;p&gt;The next optimisation is called &lt;em&gt;loop reversal optimisation&lt;/em&gt;.  Loop reversal, changes the order in which a loop iterates, typically decrementing the loop counter down towards zero rather than incrementing up from zero.  The primary advantage is that the change can change data dependencies and enable other optimisations.  This approach can also eliminate further loop overhead as many architectures support native &lt;em&gt;jump if zero&lt;/em&gt; style instructions removing the need for the explicit &lt;code&gt;CMPQ&lt;/code&gt; instruction to compare with &lt;code&gt;0&lt;/code&gt; at the end of the loop.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot4(x []float64, indx []int, y []float64) (dot float64)
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot4(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+// func Dot4(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot4(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
-  MOVQ    indx+32(FP), AX       // k &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; len(indx)
+  MOVQ    indx+32(FP), AX       // k = len(indx)
 
   XORPS   X0, X0
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX                // if --k &amp;lt; 0
+  SUBQ    $1, AX                // if --k &lt; 0
   JL      end
 
 loop:
@@ -213,16 +208,15 @@ loop:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI                // SI +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; sizeOf(int)
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8                // R8 +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; sizeOf(float64)
+  ADDQ    $8, SI                // SI += sizeOf(int)
+  ADDQ    $8, R8                // R8 += sizeOf(float64)
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX                // do...while(--k &amp;gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 0)
+  SUBQ    $1, AX                // do...while(--k &gt;= 0)
   JGE     loop
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;It should be clear from the code that we have substituted a single &lt;code&gt;SUBQ&lt;/code&gt; instruction for both the &lt;code&gt;INCQ&lt;/code&gt; instruction incrementing the loop counter and the &lt;code&gt;CMPQ&lt;/code&gt; instruction that preceded the conditional jump instruction at the end of the loop in the previous version.  However, we have also added two additional &lt;code&gt;ADDQ&lt;/code&gt; instructions to advance the pointers (&lt;code&gt;SI&lt;/code&gt; and &lt;code&gt;R8&lt;/code&gt;) through &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;indx&lt;/code&gt; every iteration of the loop.  As we are now using pointers to access the elements of &lt;code&gt;x&lt;/code&gt; and &lt;code&gt;indx&lt;/code&gt; rather than indexing with the loop counter, the addressing of the data looks much cleaner and will have lower overhead on some architectures.&lt;/p&gt;
 
@@ -254,10 +248,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  10
 &lt;h2 id=&#34;5-loop-unrolling&#34;&gt;5. Loop unrolling&lt;/h2&gt;
 
 &lt;p&gt;To reduce the overhead from advancing pointers introduced in the previous optimisation, we will use &lt;a href=&#34;https://en.wikipedia.org/wiki/Loop_unrolling&#34;&gt;&lt;em&gt;Loop unrolling&lt;/em&gt;&lt;/a&gt; to spread this overhead and decrease the number of times it is executed.  &lt;em&gt;Loop unrolling&lt;/em&gt; (or loop unwinding as it is sometimes referred to) is a technique to reduce loop overhead by decreasing the number of times loop conditions are evaluated, pointer arithmetic is executed and the number of jumps (which are expensive).  Simply put, the body of the loop is duplicated multiple times which in our case means processing multiple vector elements per iteration of the loop.  For our use case we will unroll the loop 4 times i.e. duplicate the body of the loop 4 times and process 4 vector elements per loop iteration.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot5(x []float64, indx []int, y []float64) (dot float64)
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot5(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+// func Dot5(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot5(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -265,7 +259,7 @@ TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot5(S
 
   XORPS   X0, X0
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -289,34 +283,33 @@ loop:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI               // SI +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 4 * sizeOf(int)
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8               // R8 +&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;=&lt;/span&gt; 4 * sizeOf(float64)
+  ADDQ    $32, SI               // SI += 4 * sizeOf(int)
+  ADDQ    $32, R8               // R8 += 4 * sizeOf(float64)
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX                // decrement loop counter by 4
+  SUBQ    $4, AX                // decrement loop counter by 4
   JGE     loop
 
 tailstart:
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
-  &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; process any remaining elements if len(indx) is not divisible by 4
+  // process any remaining elements if len(indx) is not divisible by 4
   MOVQ    (SI), R10
   MOVSD   (R8), X1
 
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;We can see in the code above that we have repeated the instructions from the body of the loop 4 times, processing 4 elements per iteration of the loop.  Each repeated instruction addresses the next vector element (+0, +1, +2, +3) and each iteration of the loop, the loop counter is decremented by 4 and the pointers are advanced by 4 elements.  It should also be noted that we have replicated the loop, without unrolling, under the &lt;code&gt;tail&lt;/code&gt; label.  This is to handle vectors of lengths that are not exactly divisible by 4 - the &lt;code&gt;tail&lt;/code&gt; section handles the remaining 1-3 elements after processing most of the elements in the main unrolled section.&lt;/p&gt;
 
@@ -352,10 +345,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  10
 &lt;h2 id=&#34;6-software-pipelining&#34;&gt;6. Software Pipelining&lt;/h2&gt;
 
 &lt;p&gt;Using &lt;a href=&#34;https://en.wikipedia.org/wiki/Software_pipelining&#34;&gt;Software pipelining&lt;/a&gt; we can re-order the instructions to reduce the dependencies between adjacent instructions optimising for out-of-order execution.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot6(x []float64, indx []int, y []float64) (dot float64)
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot6(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+// func Dot6(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot6(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -364,7 +357,7 @@ TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot6(S
   XORPS   X0, X0            // Use 2 accumulators to break dependency
   XORPS   X9, X9            // chain and better pipelining
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -388,14 +381,14 @@ loop:
   ADDSD   X5, X0
   ADDSD   X7, X9
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8
+  ADDQ    $32, SI
+  ADDQ    $32, R8
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  SUBQ    $4, AX
   JGE     loop
 
 tailstart:
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
@@ -405,17 +398,16 @@ tail:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
   ADDSD   X9, X0            // Add accumulators together
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;We can see in the code above, we have re-ordered the instructions in the main loop - effectively so that instructions dependent on other instructions appear further away from each other - this allows better instruction level parallelism through out-of-order execution within the CPU.  We have also added an additional accumulator to reduce the dependencies when accumulating all of the element products.  The two accumulators are added together at the end to form the final dot product.&lt;/p&gt;
 
@@ -455,10 +447,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  10
 &lt;h2 id=&#34;7-vectorisation&#34;&gt;7. Vectorisation&lt;/h2&gt;
 
 &lt;p&gt;The final optimisation we will apply is called &lt;a href=&#34;https://en.wikipedia.org/wiki/Automatic_vectorization&#34;&gt;Vectorisation&lt;/a&gt;.  Vectorisation is a form of parallelisation where a scalar implementation (processing a single pair of operands at a time) is converted so that a single operation is applied to multiple pairs of operands simultanteously.  This can be achieved through the use of &lt;a href=&#34;https://en.wikipedia.org/wiki/SIMD&#34;&gt;SIMD&lt;/a&gt; (Single Instruction, Multiple Data) instructions which are supported on most modern commodity CPUs.  Intel&amp;rsquo;s MMX, SSE and AVX extensions provide SIMD support.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;#&lt;/span&gt;include &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;textflag.h&amp;quot;&lt;/span&gt;
+#include &#34;textflag.h&#34;
 
-&lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;//&lt;/span&gt; func Dot7(x []float64, indx []int, y []float64) (dot float64)
-TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot7(SB), NOSPLIT, &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;0
+// func Dot7(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot7(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -467,7 +459,7 @@ TEXT &lt;span style=&#34;border: 1px solid #FF0000&#34;&gt;·&lt;/span&gt;Dot7(S
   XORPS   X0, X0
   XORPS   X9, X9
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -490,14 +482,14 @@ loop:
   ADDPD   X1, X0              // add the pair of products to the pairs of accumulators
   ADDPD   X3, X9              // add the pair of products to the pairs of accumulators
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, SI
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;32, R8
+  ADDQ    $32, SI
+  ADDQ    $32, R8
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  SUBQ    $4, AX
   JGE     loop
 
 tailstart:
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
@@ -507,10 +499,10 @@ tail:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, SI
-  ADDQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    &lt;span style=&#34;color: #0000ff&#34;&gt;$&lt;/span&gt;1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
@@ -521,7 +513,6 @@ end:
 
   MOVSD   X0, dot+72(FP)
   RET
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;Using Intel&amp;rsquo;s SSE extensions we can operate on pairs of elements at a time.  Unfortunatly, due to the nature of sparse matrices, we are performing an implicit &lt;a href=&#34;https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)&#34;&gt;gather&lt;/a&gt; operation when loading elements from &lt;code&gt;y&lt;/code&gt;.  This means we have to load each element of &lt;code&gt;y&lt;/code&gt; individually and then pack them, in pairs, into the SSE vector registers.  In contrast, as we are processing the elements of &lt;code&gt;x&lt;/code&gt; sequentially we can directly load the elements 2 at a time.&lt;/p&gt;
 
@@ -624,45 +615,45 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot7-4  	  20
 &lt;h2 id=&#34;implementation&#34;&gt;Implementation&lt;/h2&gt;
 
 &lt;p&gt;Here is the code for the &lt;code&gt;HashingVectoriser&lt;/code&gt; that implements the hashing trick.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; HashingVectoriser &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
-	NumFeatures   &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;
+type HashingVectoriser struct {
+	NumFeatures   int
 	wordTokeniser *regexp.Regexp
-	stopWords     &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;
+	stopWords     map[string]bool
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; NewHashingVectoriser(removeStopwords &lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;, numFeatures &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;) *HashingVectoriser {
-	&lt;span style=&#34;color: #0000ff&#34;&gt;var&lt;/span&gt; stop &lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;
+func NewHashingVectoriser(removeStopwords bool, numFeatures int) *HashingVectoriser {
+	var stop map[string]bool
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; removeStopwords {
-		stop = make(&lt;span style=&#34;color: #0000ff&#34;&gt;map&lt;/span&gt;[&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;]&lt;span style=&#34;color: #2b91af&#34;&gt;bool&lt;/span&gt;)
-		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; stopWords {
-			stop[word] = &lt;span style=&#34;color: #0000ff&#34;&gt;true&lt;/span&gt;
+	if removeStopwords {
+		stop = make(map[string]bool)
+		for _, word := range stopWords {
+			stop[word] = true
 		}
 	}
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; &amp;amp;HashingVectoriser{
+	return &amp;HashingVectoriser{
 		NumFeatures:   numFeatures,
-		wordTokeniser: regexp.MustCompile(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;\\w+&amp;quot;&lt;/span&gt;),
+		wordTokeniser: regexp.MustCompile(&#34;\\w+&#34;),
 		stopWords:     stop,
 	}
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) Fit(train ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) *HashingVectoriser {
-	&lt;span style=&#34;color: #008000&#34;&gt;// Do nothing - the HashingVectoriser is stateless and does not&lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// require training.  Method included for compatibility with&lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// other vectorisers&lt;/span&gt;
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; v
+func (v *HashingVectoriser) Fit(train ...string) *HashingVectoriser {
+	// Do nothing - the HashingVectoriser is stateless and does not
+	// require training.  Method included for compatibility with
+	// other vectorisers
+	return v
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (v *HashingVectoriser) Transform(docs ...string) (mat64.Matrix, error) {
 	mat := sparse.NewDOK(v.NumFeatures, len(docs))
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+	for d, doc := range docs {
 		words := v.tokenise(doc)
 
-		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
-			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; v.stopWords != &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt; {
-				&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; v.stopWords[word] {
-					&lt;span style=&#34;color: #0000ff&#34;&gt;continue&lt;/span&gt;
+		for _, word := range words {
+			if v.stopWords != nil {
+				if v.stopWords[word] {
+					continue
 				}
 			}
 			h := murmur3.Sum32([]byte(word))
@@ -671,61 +662,59 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot7-4  	  20
 			mat.Set(i, d, mat.At(i, d)+1)
 		}
 	}
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+	return mat, nil
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) FitTransform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; v.Transform(docs...)
+func (v *HashingVectoriser) FitTransform(docs ...string) (mat64.Matrix, error) {
+	return v.Transform(docs...)
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *HashingVectoriser) tokenise(text &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt; {
-	&lt;span style=&#34;color: #008000&#34;&gt;// convert content to lower case&lt;/span&gt;
+func (v *HashingVectoriser) tokenise(text string) []string {
+	// convert content to lower case
 	c := strings.ToLower(text)
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// match whole words, removing any punctuation/whitespace&lt;/span&gt;
+	// match whole words, removing any punctuation/whitespace
 	words := v.wordTokeniser.FindAllString(c, -1)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; words
+	return words
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;We shall do some basic benchmarking of the &lt;code&gt;HashingVectoriser&lt;/code&gt; against our exising &lt;code&gt;CountVectoriser&lt;/code&gt; implementation.  Whilst the main advantage of the HashingVectoriser is that it removes the dependency on the training data set to train the model with a complete vocabulary, we want to ensure the performance and memory consumption are at least comparable to the &lt;code&gt;CountVectoriser&lt;/code&gt;.&lt;/p&gt;
 
 &lt;p&gt;We shall benchmark the &lt;code&gt;Transform()&lt;/code&gt; method of the &lt;code&gt;HashingVectoriser&lt;/code&gt; and compare this against benchmarks for both the &lt;code&gt;Transform()&lt;/code&gt; and &lt;code&gt;FitTransform()&lt;/code&gt; methods of &lt;code&gt;CountVectoriser&lt;/code&gt;.  This will allow comparison of the raw transforms for both algorithms but also to see any savings achieved by not having to train the vocabulary (Fitting).&lt;/p&gt;
 
 &lt;p&gt;Here is the benchmarking code which uses &lt;a href=&#34;https://golang.org/pkg/testing/#hdr-Benchmarks&#34;&gt;Golang&amp;rsquo;s inbuilt benchmarking functionality&lt;/a&gt;.  The benchmarks make use of the 20 Newsgroups dataset as used in Scikit Learn.  In this case, we are using the entire dataset rather than a subset as in the last article.  This dataset contains 19,998 documents comprising a vocabulary of 209,412 unique words.  Our CountVectoriser will create a term document matrix 209,412 rows x 19,998 columns and a density of 0.1%.  We shall set the vector dimensionality for the &lt;code&gt;HashingVectoriser&lt;/code&gt; to 1,000,000 rows.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark CountVectoriser vs HashingVectoriser&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPCountVectoriserTransform(b *testing.B) {
+// Benchmark CountVectoriser vs HashingVectoriser
+func BenchmarkNLPCountVectoriserTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := nlp.NewCountVectoriser(false)
 	vect.Fit(files...)
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		mat, _ := vect.Transform(files...)
 	}
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPCountVectoriserFitTransform(b *testing.B) {
+func BenchmarkNLPCountVectoriserFitTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := nlp.NewCountVectoriser(false)
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 	}
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkNLPHashingVectoriserFitTransform(b *testing.B) {
+func BenchmarkNLPHashingVectoriserFitTransform(b *testing.B) {
 	files := Load()
-	vect := nlp.NewHashingVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;, 1000000)
+	vect := nlp.NewHashingVectoriser(false, 1000000)
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 	}
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;And here are the results.&lt;/p&gt;
 
@@ -824,72 +813,69 @@ ok  	github.com/james-bowman/nlpbench	35.133s
 &lt;p&gt;Step 1 constructs a matrix incrementally based upon the terms encountered whilst parsing the document corpus.  We suspect the matrix will be very sparse as most documents will only contain a couple of hundred unique terms from a corpus wide vocabulary of hundreds of thousands of terms.  The current dense matrix implementation is therefore very wasteful storing all of the zero values in addition to the non-zero values.  A creational sparse matrix format is probably the most appropriate format to use for this step.  Specifically, a DOK (Dictionary Of Keys) format will be most suited in this case as the matrix is constructed incrementally.&lt;/p&gt;
 
 &lt;p&gt;Here is a code snippet showing the current feature extraction using a Dense format matrix.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *CountVectoriser1) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-	mat := mat64.NewDense(len(v.Vocabulary), len(docs), &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+func (v *CountVectoriser1) Transform(docs ...string) (*mat64.Dense, error) {
+	mat := mat64.NewDense(len(v.Vocabulary), len(docs), nil)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+	for d, doc := range docs {
 		words := v.tokenise(doc)
 
-		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
+		for _, word := range words {
 			i, exists := v.Vocabulary[word]
 
-			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; exists {
+			if exists {
 				mat.Set(i, d, mat.At(i, d)+1)
 			}
 		}
 	}
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+	return mat, nil
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;And here is the same code modified to use a Dictionary Of Keys (DOK) sparse format matrix.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (v *DOKCountVectoriser1) Transform(docs ...&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) (*sparse.DOK, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (v *DOKCountVectoriser1) Transform(docs ...string) (*sparse.DOK, error) {
 	mat := sparse.NewDOK(len(v.Vocabulary), len(docs))
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; d, doc := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; docs {
+	for d, doc := range docs {
 		words := v.tokenise(doc)
 
-		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; _, word := &lt;span style=&#34;color: #0000ff&#34;&gt;range&lt;/span&gt; words {
+		for _, word := range words {
 			i, exists := v.Vocabulary[word]
 
-			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; exists {
+			if exists {
 				mat.Set(i, d, mat.At(i, d)+1)
 			}
 		}
 	}
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; mat, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+	return mat, nil
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;As you can see there is little difference to the code beyond the type of matrix used.  To test the two versions I used Go&amp;rsquo;s built in benchmark functionality and a subset of the 20 Newsgroups dataset as used in Scikit Learn.  The subset of the dataset used for this benchmark comprises 2,001 documents representing a vocabulary of 33,552 unique terms.  This results in a a term document matrix of size 33,552 x 2,001 with only 385,944 non-zero values (99.5% of the matrix elements contain zero values).  Here are the two benchmark functions.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark feature extraction vectorisation into Dense vs Sparse matrices&lt;/span&gt;
+// Benchmark feature extraction vectorisation into Dense vs Sparse matrices
 
-&lt;span style=&#34;color: #008000&#34;&gt;// Baseline Dense matrix vectorisation&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseCountVectoriserTransform(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+// Baseline Dense matrix vectorisation
+func BenchmarkDenseCountVectoriserTransform(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
-	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := NewCountVectoriser1(false)
 	vect.Fit(files...)
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		vect.Transform(files...)
 	}
 }
 
-&lt;span style=&#34;color: #008000&#34;&gt;// Benchmark DOK Sparse matrix vectorisation&lt;/span&gt;
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDOKCountVectoriserTransform(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+// Benchmark DOK Sparse matrix vectorisation
+func BenchmarkDOKCountVectoriserTransform(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
-	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := NewDOKCountVectoriser1(false)
 	vect.Fit(files...)
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		vect.Transform(files...)
 	}
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;The results are shown below.  It should be clear from the results that the new Sparse matrix implementation is slightly faster than the Dense matrix based implementation at 0.8 seconds vs 1.1 but most importantly uses considerably less memory (80 MB vs the 500 MB used by the Dense implementation).&lt;/p&gt;
 
@@ -907,19 +893,19 @@ ok  	github.com/james-bowman/nlpbench	6.640s
 &lt;p&gt;Step 2, takes the term document matrix constructed during step 1, extracts weighting values and stores them in a DIAgonal matrix which is then multiplied by the term document matrix.  The resulting matrix product will have the same sparsity pattern of non-zero values as the input term document matrix.  As the product will clearly therefore also be a sparse matrix and will be the result of an arithmetic operation we should consider the CSR (Compressed Sparse Row) sparse matrix format for this matrix.  We should also consider converting the input matrix to CSR prior to the arithmetic operation.&lt;/p&gt;
 
 &lt;p&gt;Here is a code snippet showing the current TF-IDF implementation using a Dense format matrix and a slice for the tf-idf weighting values.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer3 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
-	weights []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;
+type TfidfTransformer3 struct {
+	weights []float64
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Fit(mat mat64.Matrix) Transformer {
+func (t *TfidfTransformer3) Fit(mat mat64.Matrix) Transformer {
 	m, n := mat.Dims()
 
-	t.weights = make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+	t.weights = make([]float64, m)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+	for i := 0; i &lt; m; i++ {
 		df := 0
-		&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
-			&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+		for j := 0; j &lt; n; j++ {
+			if mat.At(i, j) != 0 {
 				df++
 			}
 		}
@@ -927,48 +913,47 @@ ok  	github.com/james-bowman/nlpbench	6.640s
 		t.weights[i] = idf
 	}
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+	return t
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
 	m, n := mat.Dims()
-	product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+	product := mat64.NewDense(m, n, nil)
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// apply a function to every element of the matrix in turn which&lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// multiplies the element value by the corresponding term weight&lt;/span&gt;
-	product.Apply(&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(i, j &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, v &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt; {
-		&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; (v * t.weights[i])
+	// apply a function to every element of the matrix in turn which
+	// multiplies the element value by the corresponding term weight
+	product.Apply(func(i, j int, v float64) float64 {
+		return (v * t.weights[i])
 	}, mat)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+	return product, nil
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+func (t *TfidfTransformer3) FitTransform(mat mat64.Matrix) (*mat64.Dense, error) {
+	return t.Fit(mat).Transform(mat)
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;And here is the same code modified to use sparse format matrices for both the TF-IDF weighting values (DIAgonal format) and for the input and output matrices (CSR - Compressed Sparse Row format).&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; SparseTfidfTransformer &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+type SparseTfidfTransformer struct {
 	transform mat64.Matrix
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) Fit(mat mat64.Matrix) *SparseTfidfTransformer {
+func (t *SparseTfidfTransformer) Fit(mat mat64.Matrix) *SparseTfidfTransformer {
 	m, n := mat.Dims()
 
-	weights := make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+	weights := make([]float64, m)
 
 	csr, isCsr := mat.(*sparse.CSR)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+	for i := 0; i &lt; m; i++ {
 		df := 0
-		&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; isCsr {
-			&lt;span style=&#34;color: #008000&#34;&gt;// if matrix is CSR, take advantage of the RowNNZ() method to &lt;/span&gt;
-			&lt;span style=&#34;color: #008000&#34;&gt;// get number of documents in which term appears.&lt;/span&gt;
+		if isCsr {
+			// if matrix is CSR, take advantage of the RowNNZ() method to 
+			// get number of documents in which term appears.
 			df = csr.RowNNZ(i)
-		} &lt;span style=&#34;color: #0000ff&#34;&gt;else&lt;/span&gt; {
-			&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
-				&lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+		} else {
+			for j := 0; j &lt; n; j++ {
+				if mat.At(i, j) != 0 {
 					df++
 				}
 			}
@@ -977,62 +962,60 @@ ok  	github.com/james-bowman/nlpbench	6.640s
 		weights[i] = idf
 	}
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// build a diagonal matrix from array of term weighting values for&lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// subsequent multiplication with term document matrics&lt;/span&gt;
+	// build a diagonal matrix from array of term weighting values for
+	// subsequent multiplication with term document matrics
 
 	t.transform = sparse.NewDIA(m, weights)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+	return t
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) Transform(mat mat64.Matrix) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-	product := &amp;amp;sparse.CSR{}
+func (t *SparseTfidfTransformer) Transform(mat mat64.Matrix) (mat64.Matrix, error) {
+	product := &amp;sparse.CSR{}
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// simply multiply the matrix by our idf transform (the diagonal matrix &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// of term weights)&lt;/span&gt;
+	// simply multiply the matrix by our idf transform (the diagonal matrix 
+	// of term weights)
 	product.Mul(t.transform, mat)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+	return product, nil
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *SparseTfidfTransformer) FitTransform(mat mat64.Matrix) (mat64.Matrix, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-	&lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+func (t *SparseTfidfTransformer) FitTransform(mat mat64.Matrix) (mat64.Matrix, error) {
+	return t.Fit(mat).Transform(mat)
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;This time, there is a little more difference between the 2 implementations.  If the input matrix is CSR format we take advantage of the RowNNZ() method to efficiently determine the number of non-zero values in each row which is used to calculate the inverse document frequency (the number of documents each term occurs in).  The TF-IDF weighting matrix is then multiplied by the input term document matrix.&lt;/p&gt;
 
 &lt;p&gt;To test the two versions I used Go&amp;rsquo;s built in benchmark functionality and the same subset of the 20 Newsgroups dataset as used in Scikit Learn.  Here are the two benchmark functions.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseTfidfFitTransform(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+func BenchmarkDenseTfidfFitTransform(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
-	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := NewCountVectoriser1(false)
 	vect.Fit(files...)
 	mat, _ := vect.Transform(files...)
 
-	trans := &amp;amp;TfidfTransformer3{}
+	trans := &amp;TfidfTransformer3{}
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		trans.FitTransform(mat)
 	}
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkSparseTfidfFitTransform(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+func BenchmarkSparseTfidfFitTransform(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
-	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vect := NewDOKCountVectoriser1(false)
 	vect.Fit(files...)
 	mat, _ := vect.Transform(files...)
 
-	trans := &amp;amp;SparseTfidfTransformer{}
+	trans := &amp;SparseTfidfTransformer{}
 
 	b.ResetTimer()
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		trans.FitTransform(mat.ToCSR())
 	}
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;The results are shown below.  It should be clear from the results that the new Sparse matrix implementation is considerably faster than the Dense matrix based implementation at 0.1 seconds vs 2.2 seconds but most importantly uses considerably less memory (16 MB vs the 500 MB used by the Dense implementation).&lt;/p&gt;
 
@@ -1050,34 +1033,33 @@ ok  	github.com/james-bowman/nlpbench	8.277s
 &lt;h2 id=&#34;putting-it-all-together&#34;&gt;Putting it all together&lt;/h2&gt;
 
 &lt;p&gt;To test the impact of our changes to steps 1 &amp;amp; 2 above together we will run the following benchmark functions.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkDenseEndToEndVectAndTrans(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+func BenchmarkDenseEndToEndVectAndTrans(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
 	b.ResetTimer()
 
-	vect := NewCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
-	trans := &amp;amp;TfidfTransformer3{}
+	vect := NewCountVectoriser1(false)
+	trans := &amp;TfidfTransformer3{}
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 		trans.FitTransform(mat)
 	}
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkSparseEndToEndVectAndTrans(b *testing.B) {
-	files := Load(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.space&amp;quot;&lt;/span&gt;, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;sci.electronics&amp;quot;&lt;/span&gt;)
+func BenchmarkSparseEndToEndVectAndTrans(b *testing.B) {
+	files := Load(&#34;sci.space&#34;, &#34;sci.electronics&#34;)
 
 	b.ResetTimer()
 
-	vect := NewDOKCountVectoriser1(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
-	trans := &amp;amp;SparseTfidfTransformer{}
+	vect := NewDOKCountVectoriser1(false)
+	trans := &amp;SparseTfidfTransformer{}
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+	for n := 0; n &lt; b.N; n++ {
 		mat, _ := vect.FitTransform(files...)
 		trans.FitTransform(mat.ToCSR())
 	}
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;The results are shown below.  We can see that the current dense implementation of steps 1 &amp;amp; 2 (with the optimisations made in &lt;a href=&#34;http://www.jamesbowman.me/post/optimising-machine-learning-algorithms/&#34;&gt;the previous post in this series&lt;/a&gt;) took 3.3 seconds to complete and consumes over 1 GB of memory.  In contrast, the new sparse format based implementation takes only 1.2 seconds to complete and consumes only 150 MB of memory.&lt;/p&gt;
 
@@ -1113,21 +1095,21 @@ ok  	github.com/james-bowman/nlpbench	5.110s
 &lt;p&gt;As can be seen in the code snippet below, the TF-IDF transformer maintains a matrix internally,which is used to transform matrices containing raw term freqencies(tf) into weighted tf-idf values (term frequency - inverse document frequencies).  The transform is simply multiplied by the input tf matrix to produce the tf-idf matrix.  Please refer to the &lt;a href=&#34;http://www.jamesbowman.me/post/semantic-analysis-of-webpages-with-machine-learning-in-go/&#34;&gt;previous blog post for a more in depth description of TF-IDF&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;The transform matrix is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Diagonal_matrix#Symmetric_diagonal_matrices&#34;&gt;symmetric diagonal matrix&lt;/a&gt; and so will have as many rows and columns as there were unique terms/words in the training data set.  For a representative sample of 3000 articles from internet sites, I found the number of unique terms was typically around 30,000 which would require a 30,000 x 30,000 transform matrix.  Therefore the TF-IDF transform is a 30,000 x 30,000 matrix with elements of type float64 which will require approximately 7GB of memory.  Ironically the majority of elements within this matrix will contain zeros, in fact, only values along the diagonal (from top left to bottom right) will be non-zero.  There is clearly scope to optimise its memory use.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer1 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
+type TfidfTransformer1 struct {
     transform *mat64.Dense
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) Fit(mat mat64.Matrix) Transformer {
+func (t *TfidfTransformer1) Fit(mat mat64.Matrix) Transformer {
     m, n := mat.Dims()
 
-    &lt;span style=&#34;color: #008000&#34;&gt;// build a diagonal matrix from array of term weighting values for subsequent&lt;/span&gt;
-    &lt;span style=&#34;color: #008000&#34;&gt;// multiplication with term document matrics&lt;/span&gt;
-    t.transform = mat64.NewDense(m, m, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+    // build a diagonal matrix from array of term weighting values for subsequent
+    // multiplication with term document matrics
+    t.transform = mat64.NewDense(m, m, nil)
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+    for i := 0; i &lt; m; i++ {
         df := 0
-        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
-            &lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+        for j := 0; j &lt; n; j++ {
+            if mat.At(i, j) != 0 {
                 df++
             }
         }
@@ -1135,41 +1117,40 @@ ok  	github.com/james-bowman/nlpbench	5.110s
         t.transform.Set(i, i, idf)
     }
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+    return t
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (t *TfidfTransformer1) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+    product := mat64.NewDense(m, n, nil)
 
-    &lt;span style=&#34;color: #008000&#34;&gt;// simply multiply the matrix by our idf transform (the diagonal matrix of term weights)&lt;/span&gt;
+    // simply multiply the matrix by our idf transform (the diagonal matrix of term weights)
     product.Product(t.transform, mat)
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+    return product, nil
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer1) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+func (t *TfidfTransformer1) FitTransform(mat mat64.Matrix) (*mat64.Dense, error) {
+    return t.Fit(mat).Transform(mat)
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;My initial thought was to use a sparse matrix instead of the dense matrix implementation I was using.  A sparse matrix could more efficiently store a matrix mostly comprised of zeros, storing only the non-zero values.  Unfortunately the gonum matrix library I am using does not currently have a sparse matrix implementation.&lt;/p&gt;
 
 &lt;p&gt;As an alternative approach, I considered simply storing the non-zero idf (term weights) values as an array of float64 values and then individually multiplying every element within the input raw tf matrix by its corresponding term weight from the array.  The code for this implementation called TfidfTransformer2 is shown below.  Note the differences in the &lt;code&gt;Fit()&lt;/code&gt; method where we no longer build a symmetric diagonal transform matrix and simply keep the array of term weights.  Also, the &lt;code&gt;Transform()&lt;/code&gt; method is now changed to simply iterate over every matrix element and multiply its value by the corresponding term weight from the array.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;type&lt;/span&gt; TfidfTransformer2 &lt;span style=&#34;color: #0000ff&#34;&gt;struct&lt;/span&gt; {
-    weights []&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;
+type TfidfTransformer2 struct {
+    weights []float64
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) Fit(mat mat64.Matrix) Transformer {
+func (t *TfidfTransformer2) Fit(mat mat64.Matrix) Transformer {
     m, n := mat.Dims()
 
-    &lt;span style=&#34;color: #008000&#34;&gt;// simply capture term weights as an array&lt;/span&gt;
-    t.weights = make([]&lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;, m)
+    // simply capture term weights as an array
+    t.weights = make([]float64, m)
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
+    for i := 0; i &lt; m; i++ {
         df := 0
-        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
-            &lt;span style=&#34;color: #0000ff&#34;&gt;if&lt;/span&gt; mat.At(i, j) != 0 {
+        for j := 0; j &lt; n; j++ {
+            if mat.At(i, j) != 0 {
                 df++
             }
         }
@@ -1177,104 +1158,101 @@ ok  	github.com/james-bowman/nlpbench	5.110s
         t.weights[i] = idf
     }
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t
+    return t
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (t *TfidfTransformer2) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+    product := mat64.NewDense(m, n, nil)
 
-    &lt;span style=&#34;color: #008000&#34;&gt;// iterate over every element of the matrix in turn and &lt;/span&gt;
-    &lt;span style=&#34;color: #008000&#34;&gt;// multiply the element value by the corresponding term weight&lt;/span&gt;
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; m; i++ {
-        &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; j := 0; j &amp;lt; n; j++ {
+    // iterate over every element of the matrix in turn and 
+    // multiply the element value by the corresponding term weight
+    for i := 0; i &lt; m; i++ {
+        for j := 0; j &lt; n; j++ {
             product.Set(i, j, mat.At(i, j) * t.weights[i])
         }
     }
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+    return product, nil
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer2) FitTransform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; t.Fit(mat).Transform(mat)
+func (t *TfidfTransformer2) FitTransform(mat mat64.Matrix) (*mat64.Dense, error) {
+    return t.Fit(mat).Transform(mat)
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;This second approach would be considerably more memory efficient but I had some concerns over performance, specifically how well iterating over every matrix element, using nested loops, outside of the heavily optimised LAPACK/BLAS libraries would perform.&lt;/p&gt;
 
 &lt;p&gt;Then I found a matrix &lt;code&gt;Apply()&lt;/code&gt; method within the gonum/mat64 library that would apply a function to every element within the matrix.  Unlike the nested loop approach, this would allow the optimised LAPACK/BLAS libraries to handle the iteration so should theoretically be more performant.  This implementation would be identical to the &lt;code&gt;TfidfTransformer2&lt;/code&gt; above save for the &lt;code&gt;Transform()&lt;/code&gt; method where the matrix &lt;code&gt;Apply()&lt;/code&gt; method is used instead of nested loops.  The differing &lt;code&gt;Transform()&lt;/code&gt; method is shown below.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, &lt;span style=&#34;color: #2b91af&#34;&gt;error&lt;/span&gt;) {
+func (t *TfidfTransformer3) Transform(mat mat64.Matrix) (*mat64.Dense, error) {
     m, n := mat.Dims()
-    product := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+    product := mat64.NewDense(m, n, nil)
 
-    &lt;span style=&#34;color: #008000&#34;&gt;// apply a function to every element of the matrix in turn which&lt;/span&gt;
-    &lt;span style=&#34;color: #008000&#34;&gt;// multiplies the element value by the corresponding term weight&lt;/span&gt;
-    product.Apply(&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt;(i, j &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, v &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt;) &lt;span style=&#34;color: #2b91af&#34;&gt;float64&lt;/span&gt; {
-        &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; (v * t.weights[i])
+    // apply a function to every element of the matrix in turn which
+    // multiplies the element value by the corresponding term weight
+    product.Apply(func(i, j int, v float64) float64 {
+        return (v * t.weights[i])
     }, mat)
 
-    &lt;span style=&#34;color: #0000ff&#34;&gt;return&lt;/span&gt; product, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;
+    return product, nil
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;h3 id=&#34;benchmarks&#34;&gt;Benchmarks&lt;/h3&gt;
 
 &lt;p&gt;To confirm our hypothesis that the new implementations will outperform the current matrix transform based implementation we will run some benchmarks using the inbuilt benchmark functionality inside Go&amp;rsquo;s &lt;code&gt;testing&lt;/code&gt; package.&lt;/p&gt;
 
 &lt;p&gt;Implementing a benchmark in Go is much the same as implementing a test except the function name is prefixed with &lt;code&gt;Benchmark&lt;/code&gt; rather than &lt;code&gt;Test&lt;/code&gt;.  Here are separate benchmark implementations for the &lt;code&gt;Fit()&lt;/code&gt;, &lt;code&gt;Transform()&lt;/code&gt; and &lt;code&gt;FitTransform()&lt;/code&gt; methods exercised for each of the 3 algorithm implementations.  As the &lt;code&gt;Fit()&lt;/code&gt; method is identical between implementation 2 (TfidfTransformer2) and 3 (TfidfTransformer3) I have not bothered to benchmark both instead just benchmarking the &lt;code&gt;Fit()&lt;/code&gt; method from implementation 2.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkFit(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
-    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+func benchmarkFit(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
 
     b.ResetTimer()
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+    for n := 0; n &lt; b.N; n++ {
         t.Fit(mat)
     }
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkFitTransform(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
-    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+func benchmarkFitTransform(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
 
     b.ResetTimer()
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+    for n := 0; n &lt; b.N; n++ {
         t.FitTransform(mat)
     }
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; benchmarkTransform(t Transformer, m, n &lt;span style=&#34;color: #2b91af&#34;&gt;int&lt;/span&gt;, b *testing.B) {
-    mat := mat64.NewDense(m, n, &lt;span style=&#34;color: #0000ff&#34;&gt;nil&lt;/span&gt;)
+func benchmarkTransform(t Transformer, m, n int, b *testing.B) {
+    mat := mat64.NewDense(m, n, nil)
     t.Fit(mat)
 
     b.ResetTimer()
-    &lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; n := 0; n &amp;lt; b.N; n++ {
+    for n := 0; n &lt; b.N; n++ {
         t.Transform(mat)
     }
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1Fit30000x3000(b *testing.B) {
-    benchmarkFit(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1Fit30000x3000(b *testing.B) {
+    benchmarkFit(&amp;TfidfTransformer1{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;TfidfTransformer1{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF1FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;amp;TfidfTransformer1{}, 30000, 3000, b)
+func BenchmarkTFIDF1FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;TfidfTransformer1{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2Fit30000x3000(b *testing.B) {
-    benchmarkFit(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2Fit30000x3000(b *testing.B) {
+    benchmarkFit(&amp;TfidfTransformer2{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;TfidfTransformer2{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF2FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;amp;TfidfTransformer2{}, 30000, 3000, b)
+func BenchmarkTFIDF2FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;TfidfTransformer2{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF3Transform30000x3000(b *testing.B) {
-    benchmarkTransform(&amp;amp;TfidfTransformer3{}, 30000, 3000, b)
+func BenchmarkTFIDF3Transform30000x3000(b *testing.B) {
+    benchmarkTransform(&amp;TfidfTransformer3{}, 30000, 3000, b)
 }
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; BenchmarkTFIDF3FitTransform30000x3000(b *testing.B) {
-    benchmarkFitTransform(&amp;amp;TfidfTransformer3{}, 30000, 3000, b)
+func BenchmarkTFIDF3FitTransform30000x3000(b *testing.B) {
+    benchmarkFitTransform(&amp;TfidfTransformer3{}, 30000, 3000, b)
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;p&gt;The benchmarks are run in the same way as tests except that the &lt;code&gt;-bench&lt;/code&gt; option is used to express a regular expression matching the names of benchmark functions to run.  The regular expression &lt;code&gt;.&lt;/code&gt; will match all benchmarks or as in the output below, &lt;code&gt;30000&lt;/code&gt; will match and run all benchmarks with 30000 in the function name.  The &lt;code&gt;-benchmem&lt;/code&gt; option will output memory allocations during the benchmark.  Here are the results of the benchmarks.&lt;/p&gt;
 
@@ -1456,67 +1434,66 @@ ok      github.com/james-bowman/nlpbench    121.167s
 &lt;h2 id=&#34;go-implement-it-pun-intended&#34;&gt;Go implement it (pun intended)&lt;/h2&gt;
 
 &lt;p&gt;I have developed [Golang implementations for the machine learning algorithms described in this article and published them on Github][].  The implementations are based on papers and tutorials in the public domain and the structure of the code takes some inspiration from &lt;a href=&#34;http://scikit-learn.org/stable/&#34;&gt;Python&amp;rsquo;s scikit-learn&lt;/a&gt;.  Here is an example of how to use the library to output cosine similarities between the example query and document corpus used in this blog post following term frequency vectorisation, tf-idf transformation and SVD factorisation.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34; style=&#34;background: #ffffff&#34;&gt;&lt;pre style=&#34;line-height: 125%&#34;&gt;&lt;span&gt;&lt;/span&gt;&lt;span style=&#34;color: #0000ff&#34;&gt;package&lt;/span&gt; main
+package main
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;import&lt;/span&gt; (
-	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;fmt&amp;quot;&lt;/span&gt;
+import (
+	&#34;fmt&#34;
 
-	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;gonum.org/v1/gonum/mat&amp;quot;&lt;/span&gt;
-	&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;github.com/james-bowman/nlp&amp;quot;&lt;/span&gt;
+	&#34;gonum.org/v1/gonum/mat&#34;
+	&#34;github.com/james-bowman/nlp&#34;
 )
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; main() {
-	testCorpus := []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;{
-		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;The quick brown fox jumped over the lazy dog&amp;quot;&lt;/span&gt;,
-		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;hey diddle diddle, the cat and the fiddle&amp;quot;&lt;/span&gt;,
-		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the fast cunning brown fox liked the slow canine dog &amp;quot;&lt;/span&gt;,
-		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the little dog laughed to see such fun&amp;quot;&lt;/span&gt;,
-		&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;and the dish ran away with the spoon&amp;quot;&lt;/span&gt;,
+func main() {
+	testCorpus := []string{
+		&#34;The quick brown fox jumped over the lazy dog&#34;,
+		&#34;hey diddle diddle, the cat and the fiddle&#34;,
+		&#34;the fast cunning brown fox liked the slow canine dog &#34;,
+		&#34;the little dog laughed to see such fun&#34;,
+		&#34;and the dish ran away with the spoon&#34;,
 	}
 
-	query := &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;the cunning creature ran around the canine&amp;quot;&lt;/span&gt;
+	query := &#34;the cunning creature ran around the canine&#34;
 
-	vectoriser := nlp.NewCountVectoriser(&lt;span style=&#34;color: #0000ff&#34;&gt;false&lt;/span&gt;)
+	vectoriser := nlp.NewCountVectoriser(false)
 	transformer := nlp.NewTfidfTransformer()
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// set k (the number of dimensions following truncation) to 2&lt;/span&gt;
+	// set k (the number of dimensions following truncation) to 2
 	reducer := nlp.NewTruncatedSVD(2)
 
-	&lt;span style=&#34;color: #008000&#34;&gt;// Fit and Transform the corpus into a term document matrix fitting the &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// model to the documents in the process&lt;/span&gt;
+	// Fit and Transform the corpus into a term document matrix fitting the 
+	// model to the documents in the process
 	matrix, _ := vectoriser.FitTransform(testCorpus...)
-	&lt;span style=&#34;color: #008000&#34;&gt;// transform the query into the same dimensional space - any terms in &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// the query not in the original training data the model was fitted to &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// will be ignored&lt;/span&gt;
+	// transform the query into the same dimensional space - any terms in 
+	// the query not in the original training data the model was fitted to 
+	// will be ignored
 	queryMat, _ := vectoriser.Transform(query)
-	calcCosine(queryMat, matrix, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Raw TF&amp;quot;&lt;/span&gt;)
+	calcCosine(queryMat, matrix, testCorpus, &#34;Raw TF&#34;)
 
 	tfidfmat, _ := transformer.FitTransform(matrix)
 	tfidfquery, _ := transformer.Transform(queryMat)
-	calcCosine(tfidfquery, tfidfmat, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;TF-IDF&amp;quot;&lt;/span&gt;)
+	calcCosine(tfidfquery, tfidfmat, testCorpus, &#34;TF-IDF&#34;)
 
 	lsi, _ := reducer.FitTransform(tfidfmat)
 	queryVector, _ := reducer.Transform(tfidfquery)
-	calcCosine(queryVector, lsi, testCorpus, &lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;LSA&amp;quot;&lt;/span&gt;)
+	calcCosine(queryVector, lsi, testCorpus, &#34;LSA&#34;)
 }
 
-&lt;span style=&#34;color: #0000ff&#34;&gt;func&lt;/span&gt; calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []&lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;, name &lt;span style=&#34;color: #2b91af&#34;&gt;string&lt;/span&gt;) {
-	&lt;span style=&#34;color: #008000&#34;&gt;// iterate over document feature vectors (columns) in the LSI and &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// compare with the query vector for similarity.  Similarity is determined &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// by the difference between the angles of the vectors known as the cosine &lt;/span&gt;
-	&lt;span style=&#34;color: #008000&#34;&gt;// similarity&lt;/span&gt;
+func calcCosine(query mat.Matrix, tdmat mat.Matrix, corpus []string, name string) {
+	// iterate over document feature vectors (columns) in the LSI and 
+	// compare with the query vector for similarity.  Similarity is determined 
+	// by the difference between the angles of the vectors known as the cosine 
+	// similarity
 	_, docs := tdmat.Dims()
 
-	fmt.Printf(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Comparing based on %s\n&amp;quot;&lt;/span&gt;, name)
+	fmt.Printf(&#34;Comparing based on %s\n&#34;, name)
 
-	&lt;span style=&#34;color: #0000ff&#34;&gt;for&lt;/span&gt; i := 0; i &amp;lt; docs; i++ {
+	for i := 0; i &lt; docs; i++ {
 		queryVec := query.(mat.ColViewer).ColView(0)
 		docVec := tdmat.(mat.ColViewer).ColView(i)
 		similarity := nlp.CosineSimilarity(queryVec, docVec)
-		fmt.Printf(&lt;span style=&#34;color: #a31515&#34;&gt;&amp;quot;Comparing &amp;#39;%s&amp;#39; = %f\n&amp;quot;&lt;/span&gt;, corpus[i], similarity)
+		fmt.Printf(&#34;Comparing &#39;%s&#39; = %f\n&#34;, corpus[i], similarity)
 	}
 }
-&lt;/pre&gt;&lt;/div&gt;
 
 &lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping up&lt;/h2&gt;
 

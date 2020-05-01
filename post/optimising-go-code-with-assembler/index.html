@@ -112,7 +112,7 @@
     },
     "headline": "Optimising Go code with Assembler",
     "name": "Optimising Go code with Assembler",
-    "wordCount":  3561 ,
+    "wordCount":  3477 ,
     "timeRequired": "PT17M",
     "inLanguage": {
       "@type": "Language",
@@ -186,6 +186,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         
             
             <li class="nav-opened" role="presentation">
+            	<a href="/talks">Talks</a>
+            </li>
+        
+            
+            <li class="nav-opened" role="presentation">
             	<a href="/about-james-bowman">About me</a>
             </li>
         
@@ -255,24 +260,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <p>A <a href="https://en.wikipedia.org/wiki/Dot_product">vector dot product</a> is a very common kernel, or basic building block, for many computations used within scientific computing and machine learning e.g. matrix multiplication, cosine similarity, etc.  The dot product simply multiplies together the respective elements of two vectors and then adds all the results together to give a scalar output.</p>
 
 <p>Here is an example of how this operation could look in code.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> Dot(x []<span style="color: #2b91af">float64</span>, y []<span style="color: #2b91af">float64</span>) (dot <span style="color: #2b91af">float64</span>) {
-  <span style="color: #0000ff">for</span> i, v := <span style="color: #0000ff">range</span> x {
+func Dot(x []float64, y []float64) (dot float64) {
+  for i, v := range x {
     dot += v * y[i]
   }
-  <span style="color: #0000ff">return</span>
+  return
 }
-</pre></div>
 
 <h2 id="1-sparse-vectors">1. Sparse Vectors</h2>
 
 <p><a href="https://www.quora.com/In-machine-learning-what-is-the-difference-between-sparse-vector-and-dense-vector">Sparse vector formats</a> store only the non-zero values of the vector, supporting optimisations for both memory use and performance.  This can yield significant gains in applications where the data is very sparse (mostly zeros) such as NLP (Natural Language Processing) and some machine learning applications.  For example, in NLP it is common to have vectors where 99% of the elements as zero.  A sparse vector therefore has 2 components: a <code>float64</code> slice containing the non-zero values and an <code>int</code> slice containing the indices of those non-zero values.  If we were to rewrite the example Dot function above so that one of the vectors, <code>x</code>, is sparse (with <code>indx</code> representing the indexes of the non-zero values) then it would look like this:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">func</span> Dot1(x []<span style="color: #2b91af">float64</span>, indx []<span style="color: #2b91af">int</span>, y []<span style="color: #2b91af">float64</span>) (dot <span style="color: #2b91af">float64</span>) {
-  <span style="color: #0000ff">for</span> i, index := <span style="color: #0000ff">range</span> indx {
+func Dot1(x []float64, indx []int, y []float64) (dot float64) {
+  for i, index := range indx {
     dot += x[i] * y[index]
   }
-  <span style="color: #0000ff">return</span>
+  return
 }
-</pre></div>
 
 <p>It should be clear from the code above that only the non-zero values of the sparse matrix <code>x</code> are being processed, multiplying them by their respective elements from the dense vector <code>y</code>.  Multiplying the zero values of <code>x</code> by their respective elements of <code>y</code> would result in zero and so is redundant as it would not affect the overall dot product.</p>
 
@@ -294,41 +297,39 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot1-4   	  1
 <h2 id="2-assembly-code">2. Assembly code</h2>
 
 <p>A full overview of <a href="https://golang.org/doc/asm">programming assembler with Go</a> is beyond the scope of this blog post.  To implement our Dot funtion in assembler, we first need to define a prototype (the function definition, with no body) of the function within a <code>.go</code> file within the package as follows:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #008000">// Dot2 is a basic, literal assembler implementation of sparse dot product.</span>
-<span style="color: #0000ff">func</span> Dot2(x []<span style="color: #2b91af">float64</span>, indx []<span style="color: #2b91af">int</span>, y []<span style="color: #2b91af">float64</span>, incy <span style="color: #2b91af">int</span>) (dot <span style="color: #2b91af">float64</span>)
-</pre></div>
+// Dot2 is a basic, literal assembler implementation of sparse dot product.
+func Dot2(x []float64, indx []int, y []float64, incy int) (dot float64)
 
 <p>Next, we write the assembly code implementation of the function in a separate file with the suffix <code>_amd64.s</code>.  It should be clear, this targets AMD64 compatible CPUs and if you wish to target an alternative CPU you would need to replace the <code>amd64</code> substring in the suffix with the corresponding label for your CPU.  Here is an initial, basic assmbler implementation of the sparse dot product function:</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="color: #0000ff">#include</span> <span style="color: #008000">&quot;textflag.h&quot;</span><span style="color: #0000ff"></span>
+#include "textflag.h"
 
-<span style="color: #008000">// func Dot2(x []float64, indx []int, y []float64) (dot float64)</span>
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot2(SB), NOSPLIT, <span style="border: 1px solid #FF0000">$</span>0
-  <span style="color: #008000">// move supplied parameters into registers</span>
+// func Dot2(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot2(SB), NOSPLIT, $0
+  // move supplied parameters into registers
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
-  MOVQ    indx+32(FP), AX       <span style="color: #008000">// len(indx)</span>
+  MOVQ    indx+32(FP), AX       // len(indx)
 
-  XORL    R9, R9                <span style="color: #008000">// i = 0</span>
-  XORPS   X0, X0                <span style="color: #008000">// dot = 0</span>
+  XORL    R9, R9                // i = 0
+  XORPS   X0, X0                // dot = 0
 
 loop:
-  CMPQ    R9, AX                <span style="color: #008000">// for i &lt; len(indx)</span>
+  CMPQ    R9, AX                // for i < len(indx)
   JGE     end
 
-  MOVQ    (SI)(R9*8), R10       <span style="color: #008000">// indx[i]</span>
-  MOVSD   (R8)(R9*8), X1        <span style="color: #008000">// x[i]</span>
-  INCQ    R9                    <span style="color: #008000">// i++</span>
+  MOVQ    (SI)(R9*8), R10       // indx[i]
+  MOVSD   (R8)(R9*8), X1        // x[i]
+  INCQ    R9                    // i++
 
-  MULSD   (DX)(R10*8), X1       <span style="color: #008000">// X1 = x[i] * y[indx[i]]</span>
-  ADDSD   X1, X0                <span style="color: #008000">// dot += X1</span>
+  MULSD   (DX)(R10*8), X1       // X1 = x[i] * y[indx[i]]
+  ADDSD   X1, X0                // dot += X1
 
   JMP     loop
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>The first thing to note is the <code>#include</code> directive which should be familiar to anyone who has ever done any C/C++ programming.  This include allows us to use human readable names for the function and branch labels within the code.  Functions are always declared as <code>TEXT ·Dot2(SB), NOSPLIT, $0</code> where <code>Dot2</code> represents the function name and the value <code>$0</code> indicates the size of the data frame.  As we are not allocating any new memory - beyond what is passed into the function - we are using a size of 0 (the <code>$</code> symbol denotes the <code>0</code> that follows it is a literal constant).</p>
 
@@ -368,10 +369,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot2-4   	  1
 <h2 id="3-loop-inversion">3. Loop inversion</h2>
 
 <p>The first optimisation we will apply is called <a href="https://en.wikipedia.org/wiki/Loop_inversion"><em>loop inversion optimisation</em></a>.  In essence, this optimisation exchanges the <code>for</code> loop from our original implementation for a <code>do...while</code> style loop where the condition is evaluated at the end of the loop.  As we are now not evaluating the loop criteria until the end, we will also need to precede the loop with a conditional check to cover the case where the loop should run zero times.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+#include "textflag.h"
 
-<span style="border: 1px solid #FF0000">//</span> func Dot3(x []float64, indx []int, y []float64) (dot float64)
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot3(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+// func Dot3(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot3(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -380,7 +381,7 @@ TEXT <span style="border: 1px solid #FF0000">·</span>Dot3(SB), NOSPLIT, <span s
   XORL    R9, R9
   XORPS   X0, X0
 
-  CMPQ    R9, AX            // if i &gt;<span style="border: 1px solid #FF0000">=</span> len(indx)
+  CMPQ    R9, AX            // if i >= len(indx)
   JGE     end
 
 loop:
@@ -392,12 +393,11 @@ loop:
   ADDSD   X1, X0
 
   CMPQ    R9, AX
-  JL      loop              // do...while(i &lt; len(indx))
+  JL      loop              // do...while(i < len(indx))
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>We can see in the code above that the unconditional jump (<code>JMP loop</code>) instruction from our previous version <code>Dot2</code> has been replaced with a conditional jump and the condition at the top of the loop has now been moved out of the loop entirely to precede it.  This has reduced the number of branch/jump instructions followed by 2 and almost halving the number of branch instructions processed (both followed and un-followed).  This is especially significant as branches are very expensive often causing <a href="https://en.wikipedia.org/wiki/Pipeline_stall">execution pipeline stalls</a> and <a href="https://en.wikipedia.org/wiki/Branch_misprediction">branch mispredictions</a>.</p>
 
@@ -425,18 +425,18 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot3-4   	  1
 <h2 id="4-loop-reversal">4. Loop reversal</h2>
 
 <p>The next optimisation is called <em>loop reversal optimisation</em>.  Loop reversal, changes the order in which a loop iterates, typically decrementing the loop counter down towards zero rather than incrementing up from zero.  The primary advantage is that the change can change data dependencies and enable other optimisations.  This approach can also eliminate further loop overhead as many architectures support native <em>jump if zero</em> style instructions removing the need for the explicit <code>CMPQ</code> instruction to compare with <code>0</code> at the end of the loop.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+#include "textflag.h"
 
-<span style="border: 1px solid #FF0000">//</span> func Dot4(x []float64, indx []int, y []float64) (dot float64)
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot4(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+// func Dot4(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot4(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
-  MOVQ    indx+32(FP), AX       // k <span style="border: 1px solid #FF0000">=</span> len(indx)
+  MOVQ    indx+32(FP), AX       // k = len(indx)
 
   XORPS   X0, X0
 
-  SUBQ    <span style="color: #0000ff">$</span>1, AX                // if --k &lt; 0
+  SUBQ    $1, AX                // if --k < 0
   JL      end
 
 loop:
@@ -446,16 +446,15 @@ loop:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    <span style="color: #0000ff">$</span>8, SI                // SI +<span style="border: 1px solid #FF0000">=</span> sizeOf(int)
-  ADDQ    <span style="color: #0000ff">$</span>8, R8                // R8 +<span style="border: 1px solid #FF0000">=</span> sizeOf(float64)
+  ADDQ    $8, SI                // SI += sizeOf(int)
+  ADDQ    $8, R8                // R8 += sizeOf(float64)
 
-  SUBQ    <span style="color: #0000ff">$</span>1, AX                // do...while(--k &gt;<span style="border: 1px solid #FF0000">=</span> 0)
+  SUBQ    $1, AX                // do...while(--k >= 0)
   JGE     loop
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>It should be clear from the code that we have substituted a single <code>SUBQ</code> instruction for both the <code>INCQ</code> instruction incrementing the loop counter and the <code>CMPQ</code> instruction that preceded the conditional jump instruction at the end of the loop in the previous version.  However, we have also added two additional <code>ADDQ</code> instructions to advance the pointers (<code>SI</code> and <code>R8</code>) through <code>x</code> and <code>indx</code> every iteration of the loop.  As we are now using pointers to access the elements of <code>x</code> and <code>indx</code> rather than indexing with the loop counter, the addressing of the data looks much cleaner and will have lower overhead on some architectures.</p>
 
@@ -487,10 +486,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot4-4  	  10
 <h2 id="5-loop-unrolling">5. Loop unrolling</h2>
 
 <p>To reduce the overhead from advancing pointers introduced in the previous optimisation, we will use <a href="https://en.wikipedia.org/wiki/Loop_unrolling"><em>Loop unrolling</em></a> to spread this overhead and decrease the number of times it is executed.  <em>Loop unrolling</em> (or loop unwinding as it is sometimes referred to) is a technique to reduce loop overhead by decreasing the number of times loop conditions are evaluated, pointer arithmetic is executed and the number of jumps (which are expensive).  Simply put, the body of the loop is duplicated multiple times which in our case means processing multiple vector elements per iteration of the loop.  For our use case we will unroll the loop 4 times i.e. duplicate the body of the loop 4 times and process 4 vector elements per loop iteration.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+#include "textflag.h"
 
-<span style="border: 1px solid #FF0000">//</span> func Dot5(x []float64, indx []int, y []float64) (dot float64)
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot5(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+// func Dot5(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot5(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -498,7 +497,7 @@ TEXT <span style="border: 1px solid #FF0000">·</span>Dot5(SB), NOSPLIT, <span s
 
   XORPS   X0, X0
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -522,34 +521,33 @@ loop:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    <span style="color: #0000ff">$</span>32, SI               // SI +<span style="border: 1px solid #FF0000">=</span> 4 * sizeOf(int)
-  ADDQ    <span style="color: #0000ff">$</span>32, R8               // R8 +<span style="border: 1px solid #FF0000">=</span> 4 * sizeOf(float64)
+  ADDQ    $32, SI               // SI += 4 * sizeOf(int)
+  ADDQ    $32, R8               // R8 += 4 * sizeOf(float64)
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX                // decrement loop counter by 4
+  SUBQ    $4, AX                // decrement loop counter by 4
   JGE     loop
 
 tailstart:
-  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
-  <span style="border: 1px solid #FF0000">//</span> process any remaining elements if len(indx) is not divisible by 4
+  // process any remaining elements if len(indx) is not divisible by 4
   MOVQ    (SI), R10
   MOVSD   (R8), X1
 
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    <span style="color: #0000ff">$</span>8, SI
-  ADDQ    <span style="color: #0000ff">$</span>8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>We can see in the code above that we have repeated the instructions from the body of the loop 4 times, processing 4 elements per iteration of the loop.  Each repeated instruction addresses the next vector element (+0, +1, +2, +3) and each iteration of the loop, the loop counter is decremented by 4 and the pointers are advanced by 4 elements.  It should also be noted that we have replicated the loop, without unrolling, under the <code>tail</code> label.  This is to handle vectors of lengths that are not exactly divisible by 4 - the <code>tail</code> section handles the remaining 1-3 elements after processing most of the elements in the main unrolled section.</p>
 
@@ -585,10 +583,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot5-4  	  10
 <h2 id="6-software-pipelining">6. Software Pipelining</h2>
 
 <p>Using <a href="https://en.wikipedia.org/wiki/Software_pipelining">Software pipelining</a> we can re-order the instructions to reduce the dependencies between adjacent instructions optimising for out-of-order execution.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+#include "textflag.h"
 
-<span style="border: 1px solid #FF0000">//</span> func Dot6(x []float64, indx []int, y []float64) (dot float64)
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot6(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+// func Dot6(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot6(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -597,7 +595,7 @@ TEXT <span style="border: 1px solid #FF0000">·</span>Dot6(SB), NOSPLIT, <span s
   XORPS   X0, X0            // Use 2 accumulators to break dependency
   XORPS   X9, X9            // chain and better pipelining
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -621,14 +619,14 @@ loop:
   ADDSD   X5, X0
   ADDSD   X7, X9
 
-  ADDQ    <span style="color: #0000ff">$</span>32, SI
-  ADDQ    <span style="color: #0000ff">$</span>32, R8
+  ADDQ    $32, SI
+  ADDQ    $32, R8
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  SUBQ    $4, AX
   JGE     loop
 
 tailstart:
-  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
@@ -638,17 +636,16 @@ tail:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    <span style="color: #0000ff">$</span>8, SI
-  ADDQ    <span style="color: #0000ff">$</span>8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
   ADDSD   X9, X0            // Add accumulators together
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>We can see in the code above, we have re-ordered the instructions in the main loop - effectively so that instructions dependent on other instructions appear further away from each other - this allows better instruction level parallelism through out-of-order execution within the CPU.  We have also added an additional accumulator to reduce the dependencies when accumulating all of the element products.  The two accumulators are added together at the end to form the final dot product.</p>
 
@@ -688,10 +685,10 @@ BenchmarkDot/10000/100000_github.com/james-bowman/algos/sparse/dot.Dot6-4  	  10
 <h2 id="7-vectorisation">7. Vectorisation</h2>
 
 <p>The final optimisation we will apply is called <a href="https://en.wikipedia.org/wiki/Automatic_vectorization">Vectorisation</a>.  Vectorisation is a form of parallelisation where a scalar implementation (processing a single pair of operands at a time) is converted so that a single operation is applied to multiple pairs of operands simultanteously.  This can be achieved through the use of <a href="https://en.wikipedia.org/wiki/SIMD">SIMD</a> (Single Instruction, Multiple Data) instructions which are supported on most modern commodity CPUs.  Intel&rsquo;s MMX, SSE and AVX extensions provide SIMD support.</p>
-<div class="highlight" style="background: #ffffff"><pre style="line-height: 125%"><span></span><span style="border: 1px solid #FF0000">#</span>include <span style="color: #a31515">&quot;textflag.h&quot;</span>
+#include "textflag.h"
 
-<span style="border: 1px solid #FF0000">//</span> func Dot7(x []float64, indx []int, y []float64) (dot float64)
-TEXT <span style="border: 1px solid #FF0000">·</span>Dot7(SB), NOSPLIT, <span style="color: #0000ff">$</span>0
+// func Dot7(x []float64, indx []int, y []float64) (dot float64)
+TEXT ·Dot7(SB), NOSPLIT, $0
   MOVQ    x+0(FP), R8
   MOVQ    indx+24(FP), SI
   MOVQ    y+48(FP), DX
@@ -700,7 +697,7 @@ TEXT <span style="border: 1px solid #FF0000">·</span>Dot7(SB), NOSPLIT, <span s
   XORPS   X0, X0
   XORPS   X9, X9
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  SUBQ    $4, AX
   JL      tailstart
 
 loop:
@@ -723,14 +720,14 @@ loop:
   ADDPD   X1, X0              // add the pair of products to the pairs of accumulators
   ADDPD   X3, X9              // add the pair of products to the pairs of accumulators
 
-  ADDQ    <span style="color: #0000ff">$</span>32, SI
-  ADDQ    <span style="color: #0000ff">$</span>32, R8
+  ADDQ    $32, SI
+  ADDQ    $32, R8
 
-  SUBQ    <span style="color: #0000ff">$</span>4, AX
+  SUBQ    $4, AX
   JGE     loop
 
 tailstart:
-  ADDQ    <span style="color: #0000ff">$</span>4, AX
+  ADDQ    $4, AX
   JE      end
 
 tail:
@@ -740,10 +737,10 @@ tail:
   MULSD   (DX)(R10*8), X1
   ADDSD   X1, X0
 
-  ADDQ    <span style="color: #0000ff">$</span>8, SI
-  ADDQ    <span style="color: #0000ff">$</span>8, R8
+  ADDQ    $8, SI
+  ADDQ    $8, R8
 
-  SUBQ    <span style="color: #0000ff">$</span>1, AX
+  SUBQ    $1, AX
   JNE     tail
 
 end:
@@ -754,7 +751,6 @@ end:
 
   MOVSD   X0, dot+72(FP)
   RET
-</pre></div>
 
 <p>Using Intel&rsquo;s SSE extensions we can operate on pairs of elements at a time.  Unfortunatly, due to the nature of sparse matrices, we are performing an implicit <a href="https://en.wikipedia.org/wiki/Gather-scatter_(vector_addressing)">gather</a> operation when loading elements from <code>y</code>.  This means we have to load each element of <code>y</code> individually and then pack them, in pairs, into the SSE vector registers.  In contrast, as we are processing the elements of <code>x</code> sequentially we can directly load the elements 2 at a time.</p>
 
