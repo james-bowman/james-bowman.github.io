@@ -7,8 +7,29 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-gb</language>
     <copyright>All rights reserved 2017</copyright>
-    <lastBuildDate>Mon, 07 Jan 2019 07:45:00 +0000</lastBuildDate>
+    <lastBuildDate>Tue, 28 Apr 2020 18:00:00 +0100</lastBuildDate>
     <atom:link href="http://www.jamesbowman.me/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Machine Learning with Go</title>
+      <link>http://www.jamesbowman.me/talk/machine-learning-with-go/</link>
+      <pubDate>Tue, 28 Apr 2020 18:00:00 +0100</pubDate>
+      
+      <guid>http://www.jamesbowman.me/talk/machine-learning-with-go/</guid>
+      <description>&lt;p&gt;Machine Learning is often viewed as something akin to magic, only within the grasp of big companies like Facebook and Google who build machine learning models in Python using established frameworks like Scikit-learn or TensorFlow. So why on earth would you do this in Go? In this talk, James will try to dispel some of the myths and, with just a pinch of maths, build a basic ML model from scratch in Go.&lt;/p&gt;
+
+&lt;p&gt;Slides for this talk are available &lt;a href=&#34;http://www.jamesbowman.me/https://www.slideshare.net/JamesBowman7/machine-learning-with-go-go-bristol-april-2020&#34;&gt;here&lt;/a&gt; or by clicking on the slide image below.&lt;/p&gt;
+
+
+&lt;figure &gt;
+    &lt;a href=&#34;http://www.jamesbowman.me/https://www.slideshare.net/JamesBowman7/machine-learning-with-go-go-bristol-april-2020&#34;&gt;
+        &lt;img src=&#34;http://www.jamesbowman.me/talk/machine-learning-with-go-talk.png&#34; alt=&#34;Slides&#34; /&gt;
+    &lt;/a&gt;
+    
+&lt;/figure&gt;
+
+</description>
+    </item>
     
     <item>
       <title>Optimising Go code with Assembler</title>
@@ -2297,37 +2318,6 @@ git push origin master
 &lt;p&gt;To set the value for the &lt;code&gt;$GIT_TOKEN&lt;/code&gt; variable, select the &lt;code&gt;settings&lt;/code&gt; tab within wercker.  Now select &lt;code&gt;pipeline&lt;/code&gt; and &lt;code&gt;Add new variable&lt;/code&gt;.  Enter &lt;code&gt;$GIT_TOKEN&lt;/code&gt; as the &lt;code&gt;Environment Variable&lt;/code&gt; and paste your generated GitHub token into the &lt;code&gt;value&lt;/code&gt; field.  Check the &lt;code&gt;protected&lt;/code&gt; check box so that the token is kept hidden and not displayed.  Finally click the &lt;code&gt;save&lt;/code&gt; button to complete the setup.&lt;/p&gt;
 
 &lt;p&gt;Now everytime, you commit and push source content changes to the &lt;code&gt;blog&lt;/code&gt; repository, Wercker will automatically render the updated content as HTML and publish it to GitHub Pages.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>About James Bowman</title>
-      <link>http://www.jamesbowman.me/about-james-bowman/</link>
-      <pubDate>Thu, 02 Jul 2015 18:02:06 +0100</pubDate>
-      
-      <guid>http://www.jamesbowman.me/about-james-bowman/</guid>
-      <description>&lt;!--&lt;div class=&#34;post-share-links&#34;&gt;--&gt;
-
-&lt;div style=&#34;float:left;margin-right:20px;&#34;&gt;
-&lt;img src=&#34;http://www.jamesbowman.me/selfportraitBW.jpg&#34; alt=&#34;James Bowman Photograph&#34; class=&#34;pure-img&#34; /&gt;
-&lt;/div&gt;
-&lt;div&gt;
-&lt;p&gt;
-Hi, my name is James Bowman and I am the CTO at &lt;a href=&#34;http://fresh8gaming.com/&#34;&gt;Fresh8 Gaming&lt;/a&gt;.  
-&lt;/p&gt;
-&lt;p&gt;
-I love coding in Go, microservices, continuous delivery and DevOps and have recently been learning lots about data science and machine learning both in Go and Julia. I am fascinated by coaching, learning, people&#39;s behaviour and organisational change.
-&lt;/p&gt;
-&lt;p&gt;
-I work in London/Bristol and live in Hartfield, East Sussex in the UK with my wife, Rachel and two children.
-&lt;/p&gt;
-&lt;p&gt;
-You can contact me through &lt;a href=&#34;https://twitter.com/JameseBowman&#34;&gt;Twitter&lt;/a&gt; or &lt;a href=&#34;https://uk.linkedin.com/in/jamesedwardbowman&#34;&gt;LinkedIn&lt;/a&gt;.
-&lt;/p&gt;
-&lt;p&gt;
-All views expressed on this site are my own and do not necessarily represent those of the company I work for.
-&lt;/p&gt;
-&lt;/div&gt;
 </description>
     </item>
     

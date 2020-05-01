@@ -2,6 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://www.jamesbowman.me/talk/</loc>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/talk/machine-learning-with-go/</loc>
+    <lastmod>2020-04-28T18:00:00+01:00</lastmod>
+  </url>
+  
+  <url>
     <loc>http://www.jamesbowman.me/post/optimising-go-code-with-assembler/</loc>
     <lastmod>2019-01-07T07:45:00+00:00</lastmod>
   </url>
@@ -90,7 +100,7 @@
   
   <url>
     <loc>http://www.jamesbowman.me/tags/algorithms/</loc>
-    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -179,7 +189,7 @@
   
   <url>
     <loc>http://www.jamesbowman.me/categories/development/</loc>
-    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -221,7 +231,13 @@
   
   <url>
     <loc>http://www.jamesbowman.me/tags/go/</loc>
-    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://www.jamesbowman.me/categories/go/</loc>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -257,7 +273,7 @@
   
   <url>
     <loc>http://www.jamesbowman.me/</loc>
-    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <lastmod>2020-04-28T18:00:00+01:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -281,7 +297,7 @@
   
   <url>
     <loc>http://www.jamesbowman.me/tags/machine-learning/</loc>
-    <lastmod>2019-01-07T07:45:00+00:00</lastmod>
+    <lastmod>2020-04-30T12:00:00+01:00</lastmod>
     <priority>0</priority>
   </url>
   
